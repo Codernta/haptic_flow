@@ -61,16 +61,20 @@ class HapticScrollPhysics extends ScrollPhysics {
     if (value.isNaN || position.pixels.isNaN) return 0.0;
 
     if (triggerAtEdges) {
-      if (value < position.pixels && position.pixels <= position.minScrollExtent) {
+      if (value < position.pixels &&
+          position.pixels <= position.minScrollExtent) {
         // Underscroll past leading edge
         _fireHaptic(edgeStep);
-      } else if (value < position.minScrollExtent && position.minScrollExtent < position.pixels) {
+      } else if (value < position.minScrollExtent &&
+          position.minScrollExtent < position.pixels) {
         // Hit leading edge
         _fireHaptic(edgeStep);
-      } else if (value > position.pixels && position.maxScrollExtent <= position.pixels) {
+      } else if (value > position.pixels &&
+          position.maxScrollExtent <= position.pixels) {
         // Overscroll past trailing edge
         _fireHaptic(edgeStep);
-      } else if (position.pixels < position.maxScrollExtent && position.maxScrollExtent < value) {
+      } else if (position.pixels < position.maxScrollExtent &&
+          position.maxScrollExtent < value) {
         // Hit trailing edge
         _fireHaptic(edgeStep);
       }

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.2
+
+* **Lightweight Distribution**:
+  * Added `.pubignore` to exclude promotional media assets from the published package distribution archive, slashing package download size from **1 MB down to ~30 KB (97% reduction)**.
+  * Preserved full backwards compatibility with all previous 0.1.x APIs.
+* **CI/CD Quality Pipelines**:
+  * Added automated GitHub Actions CI pipeline (`.github/workflows/ci.yml`) covering code formatting, static analysis (`--fatal-infos`), test coverage, example app validation, and pub.dev pre-publishing checks.
+  * Added automated tag release workflow (`.github/workflows/publish.yml`).
+* **Code Formatting**:
+  * Standardized dart formatting across all library, test, and example files.
+
 ## 0.1.1
 
 * **Security & Hardening**:

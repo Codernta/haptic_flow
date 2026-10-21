@@ -42,9 +42,9 @@ class HapticStep {
     this.customAction,
     this.tag,
   }) : assert(
-         intensity >= 0.0 && intensity <= 1.0,
-         'intensity must be between 0.0 and 1.0',
-       );
+          intensity >= 0.0 && intensity <= 1.0,
+          'intensity must be between 0.0 and 1.0',
+        );
 
   /// Creates a light impact tactile step.
   const HapticStep.light({
@@ -52,11 +52,11 @@ class HapticStep {
     double intensity = 0.3,
     String? tag,
   }) : this(
-         type: HapticStepType.light,
-         duration: duration,
-         intensity: intensity,
-         tag: tag,
-       );
+          type: HapticStepType.light,
+          duration: duration,
+          intensity: intensity,
+          tag: tag,
+        );
 
   /// Creates a medium impact tactile step.
   const HapticStep.medium({
@@ -64,11 +64,11 @@ class HapticStep {
     double intensity = 0.6,
     String? tag,
   }) : this(
-         type: HapticStepType.medium,
-         duration: duration,
-         intensity: intensity,
-         tag: tag,
-       );
+          type: HapticStepType.medium,
+          duration: duration,
+          intensity: intensity,
+          tag: tag,
+        );
 
   /// Creates a heavy impact tactile step.
   const HapticStep.heavy({
@@ -76,11 +76,11 @@ class HapticStep {
     double intensity = 1.0,
     String? tag,
   }) : this(
-         type: HapticStepType.heavy,
-         duration: duration,
-         intensity: intensity,
-         tag: tag,
-       );
+          type: HapticStepType.heavy,
+          duration: duration,
+          intensity: intensity,
+          tag: tag,
+        );
 
   /// Creates a delicate selection detent step (standard dial/slider click).
   const HapticStep.selection({
@@ -88,11 +88,11 @@ class HapticStep {
     double intensity = 0.2,
     String? tag,
   }) : this(
-         type: HapticStepType.selection,
-         duration: duration,
-         intensity: intensity,
-         tag: tag,
-       );
+          type: HapticStepType.selection,
+          duration: duration,
+          intensity: intensity,
+          tag: tag,
+        );
 
   /// Alias for [HapticStep.selection].
   const HapticStep.click({
@@ -107,20 +107,20 @@ class HapticStep {
     double intensity = 0.8,
     String? tag,
   }) : this(
-         type: HapticStepType.vibrate,
-         duration: duration,
-         intensity: intensity,
-         tag: tag,
-       );
+          type: HapticStepType.vibrate,
+          duration: duration,
+          intensity: intensity,
+          tag: tag,
+        );
 
   /// Creates a non-tactile pause or resting period in a sequence.
   const HapticStep.pause(Duration duration, {String? tag})
-    : this(
-        type: HapticStepType.pause,
-        duration: duration,
-        intensity: 0.0,
-        tag: tag,
-      );
+      : this(
+          type: HapticStepType.pause,
+          duration: duration,
+          intensity: 0.0,
+          tag: tag,
+        );
 
   /// Creates a custom step that executes an arbitrary asynchronous [action].
   const HapticStep.custom({
@@ -129,12 +129,12 @@ class HapticStep {
     double intensity = 1.0,
     String? tag,
   }) : this(
-         type: HapticStepType.custom,
-         duration: duration,
-         intensity: intensity,
-         customAction: action,
-         tag: tag,
-       );
+          type: HapticStepType.custom,
+          duration: duration,
+          intensity: intensity,
+          customAction: action,
+          tag: tag,
+        );
 
   /// The category or tactile type of this step.
   final HapticStepType type;
@@ -173,9 +173,8 @@ class HapticStep {
     String? tag,
   }) {
     final rawIntensity = intensity ?? this.intensity;
-    final safeIntensity = rawIntensity.isNaN
-        ? 0.0
-        : rawIntensity.clamp(0.0, 1.0);
+    final safeIntensity =
+        rawIntensity.isNaN ? 0.0 : rawIntensity.clamp(0.0, 1.0);
 
     final rawDuration = duration ?? this.duration;
     final safeDuration = rawDuration.isNegative
@@ -201,12 +200,15 @@ class HapticStep {
 
   /// Returns a copy scaled by [intensityScale] and [speedScale] with defensive sanitization.
   HapticStep scaled({double intensityScale = 1.0, double speedScale = 1.0}) {
-    final safeIntensityScale = (intensityScale.isNaN || intensityScale.isInfinite || intensityScale < 0)
+    final safeIntensityScale = (intensityScale.isNaN ||
+            intensityScale.isInfinite ||
+            intensityScale < 0)
         ? 1.0
         : intensityScale;
-    final safeSpeedScale = (speedScale.isNaN || speedScale.isInfinite || speedScale <= 0)
-        ? 1.0
-        : speedScale.clamp(0.01, 100.0);
+    final safeSpeedScale =
+        (speedScale.isNaN || speedScale.isInfinite || speedScale <= 0)
+            ? 1.0
+            : speedScale.clamp(0.01, 100.0);
 
     final newIntensity = (intensity * safeIntensityScale).clamp(0.0, 1.0);
     final rawMicros = (duration.inMicroseconds / safeSpeedScale).round();

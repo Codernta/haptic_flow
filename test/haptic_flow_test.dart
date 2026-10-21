@@ -171,7 +171,8 @@ void main() {
       expect(() => token.throwIfCancelled(), returnsNormally);
 
       token.cancel();
-      expect(() => token.throwIfCancelled(), throwsA(isA<HapticCancelledException>()));
+      expect(() => token.throwIfCancelled(),
+          throwsA(isA<HapticCancelledException>()));
     });
   });
 
@@ -316,7 +317,8 @@ void main() {
       ];
 
       for (final preset in presets) {
-        expect(preset.isNotEmpty, isTrue, reason: 'Preset ${preset.name} is empty');
+        expect(preset.isNotEmpty, isTrue,
+            reason: 'Preset ${preset.name} is empty');
         expect(preset.totalDuration, greaterThan(Duration.zero));
       }
     });
@@ -331,7 +333,8 @@ void main() {
       HapticFlow.enabled = true;
     });
 
-    testWidgets('HapticSlider triggers edge feedback and detents', (tester) async {
+    testWidgets('HapticSlider triggers edge feedback and detents',
+        (tester) async {
       double value = 10.0;
       final controller = HapticFlowController(driver: mockDriver);
 
@@ -366,7 +369,8 @@ void main() {
       expect(mockDriver.count, greaterThan(0));
     });
 
-    testWidgets('HapticGestureDetector triggers haptic feedback on gestures', (tester) async {
+    testWidgets('HapticGestureDetector triggers haptic feedback on gestures',
+        (tester) async {
       final controller = HapticFlowController(driver: mockDriver);
       var tapped = false;
       var longPressed = false;
@@ -396,7 +400,8 @@ void main() {
       expect(mockDriver.recordedTypes, contains(HapticStepType.heavy));
     });
 
-    testWidgets('HapticFeedbackBoundary respects enabled toggle', (tester) async {
+    testWidgets('HapticFeedbackBoundary respects enabled toggle',
+        (tester) async {
       late BuildContext testContext;
 
       await tester.pumpWidget(
@@ -418,7 +423,8 @@ void main() {
       expect(mockDriver.count, 0);
     });
 
-    testWidgets('HapticPickerWheel triggers detents on item scroll', (tester) async {
+    testWidgets('HapticPickerWheel triggers detents on item scroll',
+        (tester) async {
       final controller = HapticFlowController(driver: mockDriver);
       int selectedItem = 0;
 
@@ -450,7 +456,8 @@ void main() {
   group('Security & Robustness', () {
     test('HapticStep handles NaN, negative, and extreme values safely', () {
       const step = HapticStep.medium();
-      final sanitized = step.scaled(intensityScale: double.nan, speedScale: -5.0);
+      final sanitized =
+          step.scaled(intensityScale: double.nan, speedScale: -5.0);
       expect(sanitized.intensity, isNot(isNaN));
       expect(sanitized.intensity, equals(0.6));
       expect(sanitized.duration.isNegative, isFalse);
@@ -461,10 +468,12 @@ void main() {
       final seq = HapticSequence(bigStepList);
       // Attempting to multiply 100 steps by 10,000 times will be capped at maxSequenceSteps (10,000)
       final massive = seq * 200;
-      expect(massive.length, lessThanOrEqualTo(HapticSequence.maxSequenceSteps));
+      expect(
+          massive.length, lessThanOrEqualTo(HapticSequence.maxSequenceSteps));
     });
 
-    test('HapticFlowController safely suppresses custom action exceptions', () async {
+    test('HapticFlowController safely suppresses custom action exceptions',
+        () async {
       final mockDriver = MockHapticDriver();
       final controller = HapticFlowController(driver: mockDriver);
 

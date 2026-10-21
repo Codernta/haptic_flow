@@ -42,7 +42,8 @@ extension HapticContextExtension on BuildContext {
     if (!mounted || !isHapticEnabled) return;
     final boundary = HapticFeedbackBoundary.of(this);
     await HapticFlow.playStep(
-      const HapticStep.selection().scaled(intensityScale: boundary.intensityScale),
+      const HapticStep.selection()
+          .scaled(intensityScale: boundary.intensityScale),
     );
   }
 
@@ -54,7 +55,8 @@ extension HapticContextExtension on BuildContext {
     if (!mounted || !isHapticEnabled) return;
     final boundary = HapticFeedbackBoundary.of(this);
     await HapticFlow.playStep(
-      const HapticStep.vibrate().scaled(intensityScale: boundary.intensityScale),
+      const HapticStep.vibrate()
+          .scaled(intensityScale: boundary.intensityScale),
     );
   }
 

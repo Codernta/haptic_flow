@@ -1,0 +1,43 @@
+name: CI & Quality Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    name: Lint, Test & Package Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Package Dependencies
+        run: flutter pub get
+
+      - name: Verify Code Formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Static Code Analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Run Unit & Widget Tests
+        run: flutter test --coverage
+
+      - name: Analyze Example Application
+        run: |
+          cd example
+          flutter pub get
+          flutter analyze --fatal-infos
+
+      - name: Verify Pub.dev Package Rules
+        run: flutter pub publish --dry-run

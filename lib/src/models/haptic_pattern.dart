@@ -45,7 +45,8 @@ class CancellationToken {
 /// Exception thrown when a sequence playback is aborted via a [CancellationToken].
 class HapticCancelledException implements Exception {
   /// Creates a [HapticCancelledException].
-  const HapticCancelledException([this.message = 'Haptic playback was cancelled']);
+  const HapticCancelledException(
+      [this.message = 'Haptic playback was cancelled']);
 
   /// The error message.
   final String message;

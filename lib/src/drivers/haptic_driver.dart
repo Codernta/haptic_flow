@@ -112,7 +112,8 @@ class SystemHapticDriver extends HapticDriver {
       await action();
     } catch (e, stackTrace) {
       if (enableLogging) {
-        debugPrint('HapticFlow [SystemHapticDriver] platform warning: $e\n$stackTrace');
+        debugPrint(
+            'HapticFlow [SystemHapticDriver] platform warning: $e\n$stackTrace');
       }
     }
   }

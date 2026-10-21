@@ -109,11 +109,13 @@ class HapticFlowController extends ChangeNotifier {
     if (_isDisposed || !enabled) return;
     if (step.isTactile) {
       await _driver.trigger(step.type);
-    } else if (step.type == HapticStepType.custom && step.customAction != null) {
+    } else if (step.type == HapticStepType.custom &&
+        step.customAction != null) {
       try {
         await step.customAction!();
       } catch (e, st) {
-        debugPrint('HapticFlowController: Custom action error suppressed: $e\n$st');
+        debugPrint(
+            'HapticFlowController: Custom action error suppressed: $e\n$st');
       }
     }
   }
@@ -176,7 +178,8 @@ class HapticFlowController extends ChangeNotifier {
           }
 
           // Handle paused state
-          if (_status == HapticPlaybackStatus.paused && _pauseCompleter != null) {
+          if (_status == HapticPlaybackStatus.paused &&
+              _pauseCompleter != null) {
             await _pauseCompleter!.future;
             if (_isDisposed || _sessionCounter != sessionId) return;
             if (localToken.isCancelled || (cancelToken?.isCancelled ?? false)) {
@@ -199,11 +202,13 @@ class HapticFlowController extends ChangeNotifier {
           // Execute step feedback
           if (step.isTactile) {
             await _driver.trigger(step.type);
-          } else if (step.type == HapticStepType.custom && step.customAction != null) {
+          } else if (step.type == HapticStepType.custom &&
+              step.customAction != null) {
             try {
               await step.customAction!();
             } catch (e, st) {
-              debugPrint('HapticFlowController: Custom action error suppressed: $e\n$st');
+              debugPrint(
+                  'HapticFlowController: Custom action error suppressed: $e\n$st');
             }
           }
 
@@ -261,7 +266,8 @@ class HapticFlowController extends ChangeNotifier {
 
   /// Cancels and terminates any active playback.
   void stop() {
-    if (_activeCancellationToken != null && !_activeCancellationToken!.isCancelled) {
+    if (_activeCancellationToken != null &&
+        !_activeCancellationToken!.isCancelled) {
       _activeCancellationToken!.cancel();
     }
     _cancelActiveSleep();
@@ -344,8 +350,7 @@ class HapticFlow {
   static HapticDriver get driver => defaultController.driver;
 
   /// Replaces the global [HapticDriver] (e.g. for testing).
-  static set driver(HapticDriver driver) =>
-      defaultController.driver = driver;
+  static set driver(HapticDriver driver) => defaultController.driver = driver;
 
   /// Global master toggle for all haptics played via [HapticFlow].
   ///
@@ -386,20 +391,25 @@ class HapticFlow {
   static void stop() => defaultController.stop();
 
   /// Plays a light impact feedback pulse.
-  static Future<void> light() => defaultController.playStep(const HapticStep.light());
+  static Future<void> light() =>
+      defaultController.playStep(const HapticStep.light());
 
   /// Plays a medium impact feedback pulse.
-  static Future<void> medium() => defaultController.playStep(const HapticStep.medium());
+  static Future<void> medium() =>
+      defaultController.playStep(const HapticStep.medium());
 
   /// Plays a heavy impact feedback pulse.
-  static Future<void> heavy() => defaultController.playStep(const HapticStep.heavy());
+  static Future<void> heavy() =>
+      defaultController.playStep(const HapticStep.heavy());
 
   /// Plays a selection click feedback pulse.
-  static Future<void> selection() => defaultController.playStep(const HapticStep.selection());
+  static Future<void> selection() =>
+      defaultController.playStep(const HapticStep.selection());
 
   /// Plays a selection click feedback pulse (alias).
   static Future<void> click() => selection();
 
   /// Plays a standard device vibration pulse.
-  static Future<void> vibrate() => defaultController.playStep(const HapticStep.vibrate());
+  static Future<void> vibrate() =>
+      defaultController.playStep(const HapticStep.vibrate());
 }

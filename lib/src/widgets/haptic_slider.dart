@@ -45,11 +45,11 @@ class HapticSlider extends StatefulWidget {
       intensity: 0.6,
     ),
     this.controller,
-  }) : assert(min <= max, 'min must be less than or equal to max'),
-       assert(
-         value >= min && value <= max,
-         'value $value must be between min $min and max $max',
-       );
+  })  : assert(min <= max, 'min must be less than or equal to max'),
+        assert(
+          value >= min && value <= max,
+          'value $value must be between min $min and max $max',
+        );
 
   /// The currently selected value.
   final double value;
@@ -191,7 +191,7 @@ class _HapticSliderState extends State<HapticSlider> {
       final center = widget.centerDetentValue!;
       final crossedCenter =
           (previousValue < center && sanitizedValue >= center) ||
-          (previousValue > center && sanitizedValue <= center);
+              (previousValue > center && sanitizedValue <= center);
       if (crossedCenter) {
         _triggerStep(widget.centerStep);
         widget.onChanged?.call(sanitizedValue);
@@ -202,8 +202,7 @@ class _HapticSliderState extends State<HapticSlider> {
     // 3. Check discrete detent values
     if (widget.detentValues != null && widget.detentValues!.isNotEmpty) {
       for (final detent in widget.detentValues!) {
-        final crossed =
-            (previousValue < detent && sanitizedValue >= detent) ||
+        final crossed = (previousValue < detent && sanitizedValue >= detent) ||
             (previousValue > detent && sanitizedValue <= detent);
         if (crossed) {
           _triggerStep(widget.tickStep);

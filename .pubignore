@@ -1,0 +1,13 @@
+# Exclude heavy promotional image assets from pub.dev distribution
+# (Images are loaded via CDN/GitHub raw URLs in README.md)
+assets/
+
+# Development & CI workflows
+.github/
+.idea/
+.vscode/
+*.iml
+*.log
+doc/api/
+coverage/
+build/

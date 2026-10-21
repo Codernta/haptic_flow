@@ -4,7 +4,8 @@
   <img src="https://raw.githubusercontent.com/Codernta/haptic_flow/main/assets/haptic_flow_poster.png" alt="HapticFlow Poster" width="100%" style="border-radius: 16px;" />
 </p>
 
-[![pub package](https://img.shields.io/badge/pub-v0.1.1-blue.svg)](https://pub.dev/packages/haptic_flow)
+[![pub package](https://img.shields.io/badge/pub-v0.1.2-blue.svg)](https://pub.dev/packages/haptic_flow)
+[![CI Pipeline](https://github.com/Codernta/haptic_flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Codernta/haptic_flow/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 [![Flutter Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20Web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](https://flutter.dev)
 
@@ -32,7 +33,7 @@ Add `haptic_flow` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  haptic_flow: ^0.1.1
+  haptic_flow: ^0.1.2
 ```
 
 Import the package:

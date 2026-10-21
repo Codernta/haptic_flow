@@ -186,18 +186,78 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
   // ---------------------------------------------------------------------------
   Widget _buildPresetsTab() {
     final presets = [
-      ('Mechanical Dial', Icons.speed, 'Crisp rotary safe detents', HapticPresets.mechanicalDial),
-      ('Heartbeat', Icons.favorite, 'Biological lub-dub rhythm', HapticPresets.heartbeat),
-      ('Typewriter', Icons.keyboard, 'Metal typebar strike & carriage', HapticPresets.typewriter),
-      ('Success Snap', Icons.check_circle_outline, 'Affirmative two-stage snap', HapticPresets.successSnap),
-      ('Warning Buzz', Icons.warning_amber_rounded, 'Double cautionary pulse', HapticPresets.warningBuzz),
-      ('Error Alarm', Icons.error_outline, 'Urgent triplet heavy pulse', HapticPresets.errorAlarm),
-      ('Dice Roll', Icons.casino_outlined, 'Decelerating bouncing die ticks', HapticPresets.diceRoll),
-      ('Recharge Pulse', Icons.bolt, 'Escalating power crescendo', HapticPresets.rechargePulse),
-      ('Lock Pick', Icons.lock_open, 'Delicate pin clicks into cylinder', HapticPresets.lockPick),
-      ('Countdown', Icons.timer_outlined, '3.. 2.. 1.. impact blast', HapticPresets.countdown),
-      ('Sparkle', Icons.star_border, 'Rapid playful staccato flutter', HapticPresets.sparkle),
-      ('Battering Ram', Icons.gavel, 'Heavy impact with reverberations', HapticPresets.batteringRam),
+      (
+        'Mechanical Dial',
+        Icons.speed,
+        'Crisp rotary safe detents',
+        HapticPresets.mechanicalDial
+      ),
+      (
+        'Heartbeat',
+        Icons.favorite,
+        'Biological lub-dub rhythm',
+        HapticPresets.heartbeat
+      ),
+      (
+        'Typewriter',
+        Icons.keyboard,
+        'Metal typebar strike & carriage',
+        HapticPresets.typewriter
+      ),
+      (
+        'Success Snap',
+        Icons.check_circle_outline,
+        'Affirmative two-stage snap',
+        HapticPresets.successSnap
+      ),
+      (
+        'Warning Buzz',
+        Icons.warning_amber_rounded,
+        'Double cautionary pulse',
+        HapticPresets.warningBuzz
+      ),
+      (
+        'Error Alarm',
+        Icons.error_outline,
+        'Urgent triplet heavy pulse',
+        HapticPresets.errorAlarm
+      ),
+      (
+        'Dice Roll',
+        Icons.casino_outlined,
+        'Decelerating bouncing die ticks',
+        HapticPresets.diceRoll
+      ),
+      (
+        'Recharge Pulse',
+        Icons.bolt,
+        'Escalating power crescendo',
+        HapticPresets.rechargePulse
+      ),
+      (
+        'Lock Pick',
+        Icons.lock_open,
+        'Delicate pin clicks into cylinder',
+        HapticPresets.lockPick
+      ),
+      (
+        'Countdown',
+        Icons.timer_outlined,
+        '3.. 2.. 1.. impact blast',
+        HapticPresets.countdown
+      ),
+      (
+        'Sparkle',
+        Icons.star_border,
+        'Rapid playful staccato flutter',
+        HapticPresets.sparkle
+      ),
+      (
+        'Battering Ram',
+        Icons.gavel,
+        'Heavy impact with reverberations',
+        HapticPresets.batteringRam
+      ),
     ];
 
     return Column(
@@ -394,7 +454,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                     SizedBox(width: 8),
                     Text(
                       'HapticSlider with Dynamic Detents',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
                 ),
@@ -446,7 +507,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                     SizedBox(width: 8),
                     Text(
                       'HapticPickerWheel (Mechanical Tumbler)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
                 ),
@@ -458,7 +520,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                 const SizedBox(height: 12),
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFF334155),
                       borderRadius: BorderRadius.circular(12),
@@ -510,7 +573,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                     SizedBox(width: 8),
                     Text(
                       'HapticGestureDetector Touch Pad',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
                 ),
@@ -556,7 +620,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.fingerprint, size: 36, color: Color(0xFF818CF8)),
+                          Icon(Icons.fingerprint,
+                              size: 36, color: Color(0xFF818CF8)),
                           SizedBox(height: 6),
                           Text(
                             'Tap • Double Tap • Long Press',
@@ -614,12 +679,14 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                     const SizedBox(width: 8),
                     const Text(
                       'Interactive Sequence Score',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const Spacer(),
                     Text(
                       '${customSeq.totalDuration.inMilliseconds}ms',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -647,7 +714,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                 ),
                 const SizedBox(height: 16),
                 // Add step buttons
-                const Text('Add Step to Timeline:', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                const Text('Add Step to Timeline:',
+                    style: TextStyle(fontSize: 12, color: Colors.white70)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
@@ -655,27 +723,33 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                   children: [
                     ActionChip(
                       label: const Text('+ Light'),
-                      onPressed: () => setState(() => _customSteps.add(const HapticStep.light())),
+                      onPressed: () => setState(
+                          () => _customSteps.add(const HapticStep.light())),
                     ),
                     ActionChip(
                       label: const Text('+ Medium'),
-                      onPressed: () => setState(() => _customSteps.add(const HapticStep.medium())),
+                      onPressed: () => setState(
+                          () => _customSteps.add(const HapticStep.medium())),
                     ),
                     ActionChip(
                       label: const Text('+ Heavy'),
-                      onPressed: () => setState(() => _customSteps.add(const HapticStep.heavy())),
+                      onPressed: () => setState(
+                          () => _customSteps.add(const HapticStep.heavy())),
                     ),
                     ActionChip(
                       label: const Text('+ Click'),
-                      onPressed: () => setState(() => _customSteps.add(const HapticStep.click())),
+                      onPressed: () => setState(
+                          () => _customSteps.add(const HapticStep.click())),
                     ),
                     ActionChip(
                       label: const Text('+ Vibrate'),
-                      onPressed: () => setState(() => _customSteps.add(const HapticStep.vibrate())),
+                      onPressed: () => setState(
+                          () => _customSteps.add(const HapticStep.vibrate())),
                     ),
                     ActionChip(
                       label: const Text('+ Pause 100ms'),
-                      onPressed: () => setState(() => _customSteps.add(const HapticStep.pause(Duration(milliseconds: 100)))),
+                      onPressed: () => setState(() => _customSteps.add(
+                          const HapticStep.pause(Duration(milliseconds: 100)))),
                     ),
                     ActionChip(
                       label: const Text('Clear All'),
@@ -692,13 +766,16 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Speed Multiplier: ${_composerSpeed.toStringAsFixed(1)}x', style: const TextStyle(fontSize: 12)),
+                          Text(
+                              'Speed Multiplier: ${_composerSpeed.toStringAsFixed(1)}x',
+                              style: const TextStyle(fontSize: 12)),
                           Slider(
                             value: _composerSpeed,
                             min: 0.5,
                             max: 3.0,
                             divisions: 5,
-                            onChanged: (v) => setState(() => _composerSpeed = v),
+                            onChanged: (v) =>
+                                setState(() => _composerSpeed = v),
                           ),
                         ],
                       ),
@@ -707,13 +784,16 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Intensity Scale: ${(_composerIntensity * 100).toInt()}%', style: const TextStyle(fontSize: 12)),
+                          Text(
+                              'Intensity Scale: ${(_composerIntensity * 100).toInt()}%',
+                              style: const TextStyle(fontSize: 12)),
                           Slider(
                             value: _composerIntensity,
                             min: 0.1,
                             max: 1.0,
                             divisions: 9,
-                            onChanged: (v) => setState(() => _composerIntensity = v),
+                            onChanged: (v) =>
+                                setState(() => _composerIntensity = v),
                           ),
                         ],
                       ),
@@ -736,7 +816,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                     ),
                     const SizedBox(width: 10),
                     OutlinedButton(
-                      child: Text('Loop: ${_composerLoopCount == 0 ? "Infinite" : "${_composerLoopCount}x"}'),
+                      child: Text(
+                          'Loop: ${_composerLoopCount == 0 ? "Infinite" : "${_composerLoopCount}x"}'),
                       onPressed: () {
                         setState(() {
                           if (_composerLoopCount == 1) {
@@ -770,7 +851,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                     SizedBox(width: 8),
                     Text(
                       'Shorthand Pattern Parser',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
                 ),
@@ -797,7 +879,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                       _patternInputController.text,
                       name: 'Pattern String',
                     );
-                    _playPreset('Pattern: ${_patternInputController.text}', seq);
+                    _playPreset(
+                        'Pattern: ${_patternInputController.text}', seq);
                   },
                 ),
               ],
@@ -833,7 +916,8 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                       _boundaryEnabled
                           ? 'Subtree haptics active'
                           : 'Subtree haptics muted',
-                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -864,9 +948,11 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                       child: Text('$index'),
                     ),
                     title: Text('Tactile Scroll Item $index'),
-                    subtitle: const Text('Scroll to feel boundary bounce and 80px detents'),
+                    subtitle: const Text(
+                        'Scroll to feel boundary bounce and 80px detents'),
                     trailing: IconButton(
-                      icon: const Icon(Icons.touch_app, color: Color(0xFF818CF8)),
+                      icon:
+                          const Icon(Icons.touch_app, color: Color(0xFF818CF8)),
                       onPressed: () => context.hapticSelection(),
                     ),
                   ),
