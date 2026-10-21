@@ -1,0 +1,28 @@
+name: haptic_flow
+description: A declarative haptic choreography engine for Flutter. Compose rhythmic tactile sequences, dynamic gesture/scroll feedback, and realistic physical presets.
+version: 0.1.0
+homepage: https://github.com/Codernta/haptic_flow
+repository: https://github.com/Codernta/haptic_flow
+issue_tracker: https://github.com/Codernta/haptic_flow/issues
+
+topics:
+  - haptics
+  - vibration
+  - gestures
+  - tactile
+  - animation
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
