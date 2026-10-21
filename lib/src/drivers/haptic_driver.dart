@@ -61,40 +61,58 @@ abstract class HapticDriver {
 
 /// The default [HapticDriver] backed by Flutter's [HapticFeedback] system service.
 ///
-/// Safely guards against missing platform channels and unsupported environments
-/// (e.g., web or desktop) without throwing unhandled exceptions.
+/// Safely guards against missing platform channels, unsupported environments
+/// (e.g., web or desktop), and hardware vibrator saturation without throwing
+/// unhandled exceptions.
 class SystemHapticDriver extends HapticDriver {
   /// Creates a [SystemHapticDriver].
   ///
-  /// If [enableLogging] is true, platform errors will be logged via [debugPrint].
+  /// If [enableLogging] is true, platform warnings will be logged via [debugPrint].
   const SystemHapticDriver({this.enableLogging = false});
 
   /// Whether to print debug warnings when haptics fail or are unsupported.
   final bool enableLogging;
 
+  static DateTime _lastInvokeTime = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Minimum spacing between hardware driver invokes (10ms) to prevent hardware thermal
+  /// throttling and platform channel flooding.
+  static const Duration minHardwareInterval = Duration(milliseconds: 10);
+
   @override
   bool get isSupported {
-    // Web and desktop platforms typically lack hardware vibrators / platform channels for haptics.
     if (kIsWeb) return false;
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-      case TargetPlatform.iOS:
-        return true;
-      case TargetPlatform.fuchsia:
-      case TargetPlatform.linux:
-      case TargetPlatform.macOS:
-      case TargetPlatform.windows:
-        return false;
+    try {
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+        case TargetPlatform.iOS:
+          return true;
+        case TargetPlatform.fuchsia:
+        case TargetPlatform.linux:
+        case TargetPlatform.macOS:
+        case TargetPlatform.windows:
+          return false;
+      }
+    } catch (_) {
+      return false;
     }
   }
 
   Future<void> _safeInvoke(Future<void> Function() action) async {
     if (!isSupported) return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastInvokeTime) < minHardwareInterval) {
+      // Gracefully coalesce rapid bursts to protect device hardware
+      return;
+    }
+    _lastInvokeTime = now;
+
     try {
       await action();
     } catch (e, stackTrace) {
       if (enableLogging) {
-        debugPrint('HapticFlow [SystemHapticDriver] warning: $e\n$stackTrace');
+        debugPrint('HapticFlow [SystemHapticDriver] platform warning: $e\n$stackTrace');
       }
     }
   }
@@ -146,6 +164,9 @@ class MockHapticDriver extends HapticDriver {
   /// Creates a [MockHapticDriver] with optional [isSupported] state.
   MockHapticDriver({this.isSupported = true});
 
+  /// Maximum events retained in memory to prevent test runner memory leaks.
+  static const int maxRecordLimit = 5000;
+
   @override
   bool isSupported;
 
@@ -170,6 +191,9 @@ class MockHapticDriver extends HapticDriver {
 
   void _record(HapticStepType type, [double intensity = 1.0]) {
     if (!isSupported) return;
+    if (_records.length >= maxRecordLimit) {
+      _records.removeAt(0); // Evict oldest record
+    }
     _records.add(
       RecordedHapticEvent(
         type: type,

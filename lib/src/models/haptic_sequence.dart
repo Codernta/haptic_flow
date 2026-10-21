@@ -9,7 +9,16 @@ import 'haptic_step.dart';
 /// or parsed from shorthand pattern strings.
 @immutable
 class HapticSequence {
-  /// Creates a [HapticSequence].
+  /// Maximum number of steps permitted in a sequence to prevent memory exhaustion / OOM attacks.
+  static const int maxSequenceSteps = 10000;
+
+  /// Maximum multiplier for sequence repetition (`*` operator).
+  static const int maxRepeatMultiplier = 1000;
+
+  /// Maximum characters parsed in a single shorthand pattern.
+  static const int maxPatternLength = 50000;
+
+  /// Creates a [HapticSequence] with defensive property validation.
   const HapticSequence(
     this.steps, {
     this.name,
@@ -26,7 +35,7 @@ class HapticSequence {
   static HapticSequenceBuilder builder([String? name]) =>
       HapticSequenceBuilder(name);
 
-  /// Compiles a sequence from a tactile shorthand string [pattern].
+  /// Compiles a sequence from a tactile shorthand string [pattern] with safe length limits.
   ///
   /// Key:
   /// * `.` or `L` / `l` -> [HapticStep.light]
@@ -34,16 +43,8 @@ class HapticSequence {
   /// * `=` or `H` / `h` -> [HapticStep.heavy]
   /// * `*` or `S` / `s` -> [HapticStep.selection]
   /// * `~` or `V` / `v` -> [HapticStep.vibrate]
-  /// * ` ` or `_`       -> [HapticStep.pause]
-  ///
-  /// Example:
-  /// ```dart
-  /// final heartbeat = HapticSequence.fromPattern(
-  ///   'M H    ',
-  ///   tickDuration: Duration(milliseconds: 60),
-  ///   pauseDuration: Duration(milliseconds: 100),
-  /// );
-  /// ```
+  /// * `_`             -> [HapticStep.pause]
+  /// * ` ` (space)     -> Ignored as formatting whitespace
   factory HapticSequence.fromPattern(
     String pattern, {
     Duration tickDuration = const Duration(milliseconds: 50),
@@ -51,9 +52,14 @@ class HapticSequence {
     String? name,
     int loopCount = 1,
   }) {
+    final sanitizedPattern = pattern.length > maxPatternLength
+        ? pattern.substring(0, maxPatternLength)
+        : pattern;
+
     final steps = <HapticStep>[];
-    for (int i = 0; i < pattern.length; i++) {
-      final char = pattern[i];
+    for (int i = 0; i < sanitizedPattern.length; i++) {
+      if (steps.length >= maxSequenceSteps) break;
+      final char = sanitizedPattern[i];
       switch (char) {
         case '.':
         case 'l':
@@ -115,10 +121,12 @@ class HapticSequence {
   /// accounting for [speedScale].
   Duration get totalDuration {
     var totalMicros = 0;
+    final safeSpeed = (speedScale.isNaN || speedScale.isInfinite || speedScale <= 0)
+        ? 1.0
+        : speedScale;
     for (final step in steps) {
       final scaledMicros =
-          (step.duration.inMicroseconds / (speedScale > 0 ? speedScale : 1.0))
-              .round();
+          (step.duration.inMicroseconds / safeSpeed).round();
       totalMicros += scaledMicros;
     }
     return Duration(microseconds: totalMicros);
@@ -139,10 +147,18 @@ class HapticSequence {
   /// Retrieves the step at [index].
   HapticStep operator [](int index) => steps[index];
 
-  /// Concatenates this sequence with [other] to create a new sequence.
+  /// Concatenates this sequence with [other] to create a new sequence,
+  /// strictly enforcing [maxSequenceSteps].
   HapticSequence operator +(HapticSequence other) {
+    final available = maxSequenceSteps - steps.length;
+    final otherSteps = available > 0
+        ? (other.steps.length > available
+            ? other.steps.take(available)
+            : other.steps)
+        : const <HapticStep>[];
+
     return HapticSequence(
-      [...steps, ...other.steps],
+      [...steps, ...otherSteps],
       name: name != null && other.name != null ? '$name + ${other.name}' : null,
       loopCount: loopCount,
       intensityScale: intensityScale,
@@ -150,16 +166,22 @@ class HapticSequence {
     );
   }
 
-  /// Multiplies the steps of this sequence [times] times.
+  /// Multiplies the steps of this sequence [times] times, enforcing strict memory bounds.
   HapticSequence operator *(int times) {
-    if (times <= 0) return const HapticSequence.empty();
+    if (times <= 0 || steps.isEmpty) return const HapticSequence.empty();
+    final safeTimes = times.clamp(0, maxRepeatMultiplier);
     final repeated = <HapticStep>[];
-    for (var i = 0; i < times; i++) {
+    for (var i = 0; i < safeTimes; i++) {
+      if (repeated.length + steps.length > maxSequenceSteps) {
+        final remaining = maxSequenceSteps - repeated.length;
+        if (remaining > 0) repeated.addAll(steps.take(remaining));
+        break;
+      }
       repeated.addAll(steps);
     }
     return HapticSequence(
       repeated,
-      name: name != null ? '$name x$times' : null,
+      name: name != null ? '$name x$safeTimes' : null,
       loopCount: loopCount,
       intensityScale: intensityScale,
       speedScale: speedScale,
@@ -197,12 +219,22 @@ class HapticSequence {
     double? intensityScale,
     double? speedScale,
   }) {
+    final rawIntensity = intensityScale ?? this.intensityScale;
+    final safeIntensity = (rawIntensity.isNaN || rawIntensity.isInfinite || rawIntensity < 0)
+        ? 1.0
+        : rawIntensity.clamp(0.0, 10.0);
+
+    final rawSpeed = speedScale ?? this.speedScale;
+    final safeSpeed = (rawSpeed.isNaN || rawSpeed.isInfinite || rawSpeed <= 0)
+        ? 1.0
+        : rawSpeed.clamp(0.01, 100.0);
+
     return HapticSequence(
       steps ?? this.steps,
       name: name ?? this.name,
       loopCount: loopCount ?? this.loopCount,
-      intensityScale: intensityScale ?? this.intensityScale,
-      speedScale: speedScale ?? this.speedScale,
+      intensityScale: safeIntensity,
+      speedScale: safeSpeed,
     );
   }
 
@@ -243,6 +275,8 @@ class HapticSequenceBuilder {
   double _speedScale = 1.0;
   final List<HapticStep> _steps = [];
 
+  bool get _canAddStep => _steps.length < HapticSequence.maxSequenceSteps;
+
   /// Sets the sequence name.
   HapticSequenceBuilder withName(String name) {
     _name = name;
@@ -257,13 +291,17 @@ class HapticSequenceBuilder {
 
   /// Sets the global intensity scaling factor.
   HapticSequenceBuilder scaleIntensity(double factor) {
-    _intensityScale = factor;
+    if (!factor.isNaN && !factor.isInfinite && factor >= 0) {
+      _intensityScale = factor.clamp(0.0, 10.0);
+    }
     return this;
   }
 
   /// Sets the global playback speed factor.
   HapticSequenceBuilder scaleSpeed(double factor) {
-    _speedScale = factor;
+    if (!factor.isNaN && !factor.isInfinite && factor > 0) {
+      _speedScale = factor.clamp(0.01, 100.0);
+    }
     return this;
   }
 
@@ -273,7 +311,9 @@ class HapticSequenceBuilder {
     double intensity = 0.3,
     String? tag,
   }) {
-    _steps.add(HapticStep.light(duration: duration, intensity: intensity, tag: tag));
+    if (_canAddStep) {
+      _steps.add(HapticStep.light(duration: duration, intensity: intensity, tag: tag));
+    }
     return this;
   }
 
@@ -283,7 +323,9 @@ class HapticSequenceBuilder {
     double intensity = 0.6,
     String? tag,
   }) {
-    _steps.add(HapticStep.medium(duration: duration, intensity: intensity, tag: tag));
+    if (_canAddStep) {
+      _steps.add(HapticStep.medium(duration: duration, intensity: intensity, tag: tag));
+    }
     return this;
   }
 
@@ -293,7 +335,9 @@ class HapticSequenceBuilder {
     double intensity = 1.0,
     String? tag,
   }) {
-    _steps.add(HapticStep.heavy(duration: duration, intensity: intensity, tag: tag));
+    if (_canAddStep) {
+      _steps.add(HapticStep.heavy(duration: duration, intensity: intensity, tag: tag));
+    }
     return this;
   }
 
@@ -303,7 +347,9 @@ class HapticSequenceBuilder {
     double intensity = 0.2,
     String? tag,
   }) {
-    _steps.add(HapticStep.selection(duration: duration, intensity: intensity, tag: tag));
+    if (_canAddStep) {
+      _steps.add(HapticStep.selection(duration: duration, intensity: intensity, tag: tag));
+    }
     return this;
   }
 
@@ -320,13 +366,17 @@ class HapticSequenceBuilder {
     double intensity = 0.8,
     String? tag,
   }) {
-    _steps.add(HapticStep.vibrate(duration: duration, intensity: intensity, tag: tag));
+    if (_canAddStep) {
+      _steps.add(HapticStep.vibrate(duration: duration, intensity: intensity, tag: tag));
+    }
     return this;
   }
 
   /// Appends a non-tactile pause or delay.
   HapticSequenceBuilder pause(Duration duration, {String? tag}) {
-    _steps.add(HapticStep.pause(duration, tag: tag));
+    if (_canAddStep) {
+      _steps.add(HapticStep.pause(duration, tag: tag));
+    }
     return this;
   }
 
@@ -337,24 +387,31 @@ class HapticSequenceBuilder {
     double intensity = 1.0,
     String? tag,
   }) {
-    _steps.add(HapticStep.custom(
-      action: action,
-      duration: duration,
-      intensity: intensity,
-      tag: tag,
-    ));
+    if (_canAddStep) {
+      _steps.add(HapticStep.custom(
+        action: action,
+        duration: duration,
+        intensity: intensity,
+        tag: tag,
+      ));
+    }
     return this;
   }
 
   /// Appends an existing [HapticStep].
   HapticSequenceBuilder step(HapticStep step) {
-    _steps.add(step);
+    if (_canAddStep) {
+      _steps.add(step);
+    }
     return this;
   }
 
   /// Appends multiple existing [HapticStep] items.
   HapticSequenceBuilder steps(Iterable<HapticStep> steps) {
-    _steps.addAll(steps);
+    for (final s in steps) {
+      if (!_canAddStep) break;
+      _steps.add(s);
+    }
     return this;
   }
 
@@ -369,7 +426,10 @@ class HapticSequenceBuilder {
       tickDuration: tickDuration,
       pauseDuration: pauseDuration,
     );
-    _steps.addAll(parsed.steps);
+    for (final s in parsed.steps) {
+      if (!_canAddStep) break;
+      _steps.add(s);
+    }
     return this;
   }
 
@@ -380,9 +440,10 @@ class HapticSequenceBuilder {
     double startIntensity = 0.1,
     double endIntensity = 1.0,
   }) {
-    assert(steps > 0, 'steps must be greater than 0');
-    for (int i = 0; i < steps; i++) {
-      final t = steps == 1 ? 1.0 : i / (steps - 1);
+    final safeSteps = steps.clamp(1, 500);
+    for (int i = 0; i < safeSteps; i++) {
+      if (!_canAddStep) break;
+      final t = safeSteps == 1 ? 1.0 : i / (safeSteps - 1);
       final intensity = startIntensity + (endIntensity - startIntensity) * t;
       HapticStepType type;
       if (intensity < 0.35) {
@@ -408,9 +469,12 @@ class HapticSequenceBuilder {
     Duration gap = const Duration(milliseconds: 30),
     HapticStepType type = HapticStepType.selection,
   }) {
-    for (int i = 0; i < count; i++) {
+    final safeCount = count.clamp(1, 500);
+    for (int i = 0; i < safeCount; i++) {
+      if (!_canAddStep) break;
       _steps.add(HapticStep(type: type, duration: duration));
-      if (i < count - 1 && gap > Duration.zero) {
+      if (i < safeCount - 1 && gap > Duration.zero) {
+        if (!_canAddStep) break;
         _steps.add(HapticStep.pause(gap));
       }
     }
@@ -422,11 +486,17 @@ class HapticSequenceBuilder {
     int times,
     void Function(HapticSequenceBuilder sub) subSequence,
   ) {
+    final safeTimes = times.clamp(0, HapticSequence.maxRepeatMultiplier);
+    if (safeTimes == 0) return this;
+
     final sub = HapticSequenceBuilder();
     subSequence(sub);
     final builtSub = sub.build();
-    for (var i = 0; i < times; i++) {
-      _steps.addAll(builtSub.steps);
+    for (var i = 0; i < safeTimes; i++) {
+      for (final s in builtSub.steps) {
+        if (!_canAddStep) break;
+        _steps.add(s);
+      }
     }
     return this;
   }

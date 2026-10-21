@@ -446,4 +446,60 @@ void main() {
       expect(mockDriver.count, greaterThan(0));
     });
   });
+
+  group('Security & Robustness', () {
+    test('HapticStep handles NaN, negative, and extreme values safely', () {
+      const step = HapticStep.medium();
+      final sanitized = step.scaled(intensityScale: double.nan, speedScale: -5.0);
+      expect(sanitized.intensity, isNot(isNaN));
+      expect(sanitized.intensity, equals(0.6));
+      expect(sanitized.duration.isNegative, isFalse);
+    });
+
+    test('HapticSequence enforces maximum step bounds against OOM attacks', () {
+      final bigStepList = List.generate(100, (i) => const HapticStep.light());
+      final seq = HapticSequence(bigStepList);
+      // Attempting to multiply 100 steps by 10,000 times will be capped at maxSequenceSteps (10,000)
+      final massive = seq * 200;
+      expect(massive.length, lessThanOrEqualTo(HapticSequence.maxSequenceSteps));
+    });
+
+    test('HapticFlowController safely suppresses custom action exceptions', () async {
+      final mockDriver = MockHapticDriver();
+      final controller = HapticFlowController(driver: mockDriver);
+
+      final seq = HapticSequence.builder()
+          .light(duration: const Duration(milliseconds: 10))
+          .custom(action: () => throw StateError('Simulated malicious failure'))
+          .heavy(duration: const Duration(milliseconds: 10))
+          .build();
+
+      // Should complete normally without throwing unhandled exception
+      await expectLater(controller.play(seq), completes);
+      expect(mockDriver.recordedTypes, [
+        HapticStepType.light,
+        HapticStepType.heavy,
+      ]);
+
+      controller.dispose();
+    });
+
+    test('HapticFlowController safely aborts on disposal', () async {
+      final mockDriver = MockHapticDriver();
+      final controller = HapticFlowController(driver: mockDriver);
+
+      final seq = HapticSequence.builder()
+          .light(duration: const Duration(milliseconds: 100))
+          .heavy(duration: const Duration(milliseconds: 100))
+          .build();
+
+      final playFuture = controller.play(seq);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      controller.dispose();
+      await playFuture;
+
+      expect(controller.isDisposed, isTrue);
+      expect(mockDriver.recordedTypes, [HapticStepType.light]);
+    });
+  });
 }

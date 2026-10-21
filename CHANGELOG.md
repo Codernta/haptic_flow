@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.1
+
+* **Security & Hardening**:
+  * Added strict input validation and clamping for `HapticStep` intensity (`0.0` to `1.0`) and non-negative duration guards.
+  * Enforced sequence memory limits (`HapticSequence.maxSequenceSteps = 10000`, `maxRepeatMultiplier = 1000`, `maxPatternLength = 50000`) preventing memory exhaustion attacks.
+  * Added hardware thermal and rate-limiting protection in `SystemHapticDriver` to protect physical vibrator motors from rapid burst saturation.
+  * Added concurrency session counters in `HapticFlowController` ensuring clean async cancellation and preventing race conditions.
+  * Added exception isolation for custom actions in `HapticStep.custom` preventing host UI isolate crashes.
+  * Added defensive `mounted` checks in `HapticContextExtension` preventing asynchronous unmounted widget tree crashes.
+  * Hardened `HapticSlider`, `HapticFeedbackBoundary`, and `HapticScrollPhysics` against `NaN` and infinite value edge cases.
+* **Documentation & Assets**:
+  * Updated official Flutter package release poster and visual documentation.
+
 ## 0.1.0
 
 * Initial release of **`haptic_flow`**: A Declarative Haptic Choreography Engine for Flutter.

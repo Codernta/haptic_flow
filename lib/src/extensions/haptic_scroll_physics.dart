@@ -58,6 +58,8 @@ class HapticScrollPhysics extends ScrollPhysics {
 
   @override
   double applyBoundaryConditions(ScrollMetrics position, double value) {
+    if (value.isNaN || position.pixels.isNaN) return 0.0;
+
     if (triggerAtEdges) {
       if (value < position.pixels && position.pixels <= position.minScrollExtent) {
         // Underscroll past leading edge
@@ -74,7 +76,10 @@ class HapticScrollPhysics extends ScrollPhysics {
       }
     }
 
-    if (detentDistance != null && detentDistance! > 0) {
+    if (detentDistance != null &&
+        detentDistance! > 0 &&
+        !detentDistance!.isNaN &&
+        !detentDistance!.isInfinite) {
       final prevIndex = (position.pixels / detentDistance!).floor();
       final currIndex = (value / detentDistance!).floor();
       if (prevIndex != currIndex) {

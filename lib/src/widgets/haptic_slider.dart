@@ -157,18 +157,20 @@ class _HapticSliderState extends State<HapticSlider> {
   }
 
   void _handleChanged(double newValue) {
+    if (newValue.isNaN || newValue.isInfinite) return;
+    final sanitizedValue = newValue.clamp(widget.min, widget.max);
     final previousValue = _lastValue;
-    _lastValue = newValue;
+    _lastValue = sanitizedValue;
 
     // 1. Check boundary edge feedback
     if (widget.enableEdgeFeedback) {
-      final isNowMin = newValue <= widget.min;
-      final isNowMax = newValue >= widget.max;
+      final isNowMin = sanitizedValue <= widget.min;
+      final isNowMax = sanitizedValue >= widget.max;
 
       if (isNowMin && !_atMinEdge) {
         _atMinEdge = true;
         _triggerStep(widget.edgeStep);
-        widget.onChanged?.call(newValue);
+        widget.onChanged?.call(sanitizedValue);
         return;
       } else if (!isNowMin) {
         _atMinEdge = false;
@@ -177,7 +179,7 @@ class _HapticSliderState extends State<HapticSlider> {
       if (isNowMax && !_atMaxEdge) {
         _atMaxEdge = true;
         _triggerStep(widget.edgeStep);
-        widget.onChanged?.call(newValue);
+        widget.onChanged?.call(sanitizedValue);
         return;
       } else if (!isNowMax) {
         _atMaxEdge = false;
@@ -188,11 +190,11 @@ class _HapticSliderState extends State<HapticSlider> {
     if (widget.centerDetentValue != null) {
       final center = widget.centerDetentValue!;
       final crossedCenter =
-          (previousValue < center && newValue >= center) ||
-          (previousValue > center && newValue <= center);
+          (previousValue < center && sanitizedValue >= center) ||
+          (previousValue > center && sanitizedValue <= center);
       if (crossedCenter) {
         _triggerStep(widget.centerStep);
-        widget.onChanged?.call(newValue);
+        widget.onChanged?.call(sanitizedValue);
         return;
       }
     }
@@ -201,8 +203,8 @@ class _HapticSliderState extends State<HapticSlider> {
     if (widget.detentValues != null && widget.detentValues!.isNotEmpty) {
       for (final detent in widget.detentValues!) {
         final crossed =
-            (previousValue < detent && newValue >= detent) ||
-            (previousValue > detent && newValue <= detent);
+            (previousValue < detent && sanitizedValue >= detent) ||
+            (previousValue > detent && sanitizedValue <= detent);
         if (crossed) {
           _triggerStep(widget.tickStep);
           break;
@@ -213,7 +215,7 @@ class _HapticSliderState extends State<HapticSlider> {
     // 4. Check regular interval detents
     if (widget.detentInterval != null && widget.detentInterval! > 0) {
       final interval = widget.detentInterval!;
-      final currentIndex = (newValue / interval).round();
+      final currentIndex = (sanitizedValue / interval).round();
       if (_lastIntervalIndex != null && currentIndex != _lastIntervalIndex) {
         _lastIntervalIndex = currentIndex;
         _triggerStep(widget.tickStep);
@@ -227,13 +229,13 @@ class _HapticSliderState extends State<HapticSlider> {
         widget.detentValues == null) {
       final stepSize = (widget.max - widget.min) / widget.divisions!;
       final prevDiv = ((previousValue - widget.min) / stepSize).round();
-      final currDiv = ((newValue - widget.min) / stepSize).round();
+      final currDiv = ((sanitizedValue - widget.min) / stepSize).round();
       if (prevDiv != currDiv) {
         _triggerStep(widget.tickStep);
       }
     }
 
-    widget.onChanged?.call(newValue);
+    widget.onChanged?.call(sanitizedValue);
   }
 
   @override

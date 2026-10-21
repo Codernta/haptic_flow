@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 
 /// Configuration data provided by a [HapticFeedbackBoundary].
 class HapticFeedbackBoundaryData {
-  /// Creates [HapticFeedbackBoundaryData].
+  /// Creates [HapticFeedbackBoundaryData] with defensive scaling sanitization.
   const HapticFeedbackBoundaryData({
     this.enabled = true,
     this.intensityScale = 1.0,
@@ -53,17 +53,32 @@ class HapticFeedbackBoundary extends InheritedWidget {
   final double speedScale;
 
   /// Retrieves the ambient [HapticFeedbackBoundaryData] from the closest ancestor,
-  /// or a default enabled instance if none is found.
+  /// with defensive boundary checking.
   static HapticFeedbackBoundaryData of(BuildContext context) {
+    if (!context.mounted) return const HapticFeedbackBoundaryData();
+
     final boundary =
         context.dependOnInheritedWidgetOfExactType<HapticFeedbackBoundary>();
     if (boundary == null) {
       return const HapticFeedbackBoundaryData();
     }
+
+    final safeIntensity = (boundary.intensityScale.isNaN ||
+            boundary.intensityScale.isInfinite ||
+            boundary.intensityScale < 0)
+        ? 1.0
+        : boundary.intensityScale.clamp(0.0, 10.0);
+
+    final safeSpeed = (boundary.speedScale.isNaN ||
+            boundary.speedScale.isInfinite ||
+            boundary.speedScale <= 0)
+        ? 1.0
+        : boundary.speedScale.clamp(0.01, 100.0);
+
     return HapticFeedbackBoundaryData(
       enabled: boundary.enabled,
-      intensityScale: boundary.intensityScale,
-      speedScale: boundary.speedScale,
+      intensityScale: safeIntensity,
+      speedScale: safeSpeed,
     );
   }
 

@@ -31,7 +31,10 @@ enum HapticStepType {
 /// haptic choreographies such as heartbeats, mechanical dials, or celebratory snaps.
 @immutable
 class HapticStep {
-  /// Creates a raw [HapticStep].
+  /// Maximum safety duration for an individual step to prevent thread/scheduler locking.
+  static const Duration maxStepDuration = Duration(minutes: 5);
+
+  /// Creates a raw [HapticStep] with strict runtime parameter sanitization.
   const HapticStep({
     required this.type,
     this.duration = const Duration(milliseconds: 50),
@@ -161,7 +164,7 @@ class HapticStep {
   /// Whether this step triggers tactile hardware feedback.
   bool get isTactile => !isPause && type != HapticStepType.custom;
 
-  /// Returns a copy of this step with specified fields replaced.
+  /// Returns a copy of this step with specified fields replaced, enforcing strict safety bounds.
   HapticStep copyWith({
     HapticStepType? type,
     Duration? duration,
@@ -169,10 +172,20 @@ class HapticStep {
     FutureOr<void> Function()? customAction,
     String? tag,
   }) {
+    final rawIntensity = intensity ?? this.intensity;
+    final safeIntensity = rawIntensity.isNaN
+        ? 0.0
+        : rawIntensity.clamp(0.0, 1.0);
+
+    final rawDuration = duration ?? this.duration;
+    final safeDuration = rawDuration.isNegative
+        ? Duration.zero
+        : (rawDuration > maxStepDuration ? maxStepDuration : rawDuration);
+
     return HapticStep(
       type: type ?? this.type,
-      duration: duration ?? this.duration,
-      intensity: (intensity ?? this.intensity).clamp(0.0, 1.0),
+      duration: safeDuration,
+      intensity: safeIntensity,
       customAction: customAction ?? this.customAction,
       tag: tag ?? this.tag,
     );
@@ -186,15 +199,22 @@ class HapticStep {
   HapticStep withIntensity(double newIntensity) =>
       copyWith(intensity: newIntensity);
 
-  /// Returns a copy scaled by [intensityScale] and [speedScale].
-  ///
-  /// [speedScale] divides the duration (e.g. 2.0 speed = half duration).
+  /// Returns a copy scaled by [intensityScale] and [speedScale] with defensive sanitization.
   HapticStep scaled({double intensityScale = 1.0, double speedScale = 1.0}) {
-    final newIntensity = (intensity * intensityScale).clamp(0.0, 1.0);
-    final newDurationMs = (duration.inMicroseconds / (speedScale > 0 ? speedScale : 1.0)).round();
+    final safeIntensityScale = (intensityScale.isNaN || intensityScale.isInfinite || intensityScale < 0)
+        ? 1.0
+        : intensityScale;
+    final safeSpeedScale = (speedScale.isNaN || speedScale.isInfinite || speedScale <= 0)
+        ? 1.0
+        : speedScale.clamp(0.01, 100.0);
+
+    final newIntensity = (intensity * safeIntensityScale).clamp(0.0, 1.0);
+    final rawMicros = (duration.inMicroseconds / safeSpeedScale).round();
+    final safeMicros = rawMicros.clamp(0, maxStepDuration.inMicroseconds);
+
     return copyWith(
       intensity: newIntensity,
-      duration: Duration(microseconds: newDurationMs),
+      duration: Duration(microseconds: safeMicros),
     );
   }
 

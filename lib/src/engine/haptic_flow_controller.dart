@@ -8,7 +8,8 @@ import '../models/haptic_step.dart';
 /// The core execution engine for haptic sequences and tactile choreography.
 ///
 /// [HapticFlowController] manages timeline scheduling, cancellation tokens,
-/// pause/resume states, and dispatches tactile pulses to the underlying [HapticDriver].
+/// pause/resume states, concurrency isolation, and dispatches tactile pulses
+/// to the underlying [HapticDriver].
 ///
 /// It extends [ChangeNotifier] for easy integration with Flutter UI widgets and
 /// also provides a reactive [events] stream.
@@ -26,6 +27,7 @@ class HapticFlowController extends ChangeNotifier {
 
   /// Updates the active [HapticDriver] (e.g. for swapping in [MockHapticDriver] in tests).
   set driver(HapticDriver newDriver) {
+    if (_isDisposed) return;
     _driver = newDriver;
     notifyListeners();
   }
@@ -33,6 +35,12 @@ class HapticFlowController extends ChangeNotifier {
   /// Whether haptic playback is enabled on this controller.
   bool enabled = true;
 
+  bool _isDisposed = false;
+
+  /// Whether this controller has been disposed.
+  bool get isDisposed => _isDisposed;
+
+  int _sessionCounter = 0;
   HapticPlaybackStatus _status = HapticPlaybackStatus.idle;
   HapticSequence? _currentSequence;
   HapticStep? _currentStep;
@@ -83,6 +91,7 @@ class HapticFlowController extends ChangeNotifier {
   bool get isPlatformSupported => _driver.isSupported;
 
   void _emitEvent() {
+    if (_isDisposed || _eventController.isClosed) return;
     final event = HapticPlaybackEvent(
       status: _status,
       currentStepIndex: _currentStepIndex,
@@ -95,26 +104,32 @@ class HapticFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Plays a single [HapticStep] immediately.
+  /// Plays a single [HapticStep] immediately with strict error boundary protection.
   Future<void> playStep(HapticStep step) async {
-    if (!enabled) return;
+    if (_isDisposed || !enabled) return;
     if (step.isTactile) {
       await _driver.trigger(step.type);
     } else if (step.type == HapticStepType.custom && step.customAction != null) {
-      await step.customAction!();
+      try {
+        await step.customAction!();
+      } catch (e, st) {
+        debugPrint('HapticFlowController: Custom action error suppressed: $e\n$st');
+      }
     }
   }
 
-  /// Plays a [HapticSequence] from start to finish.
+  /// Plays a [HapticSequence] from start to finish with strict concurrency isolation.
   ///
   /// If another sequence is already playing on this controller, it is cancelled
-  /// and replaced.
+  /// and replaced safely.
   ///
   /// Provide an optional [cancelToken] to allow external abortion of playback.
   Future<void> play(
     HapticSequence sequence, {
     CancellationToken? cancelToken,
   }) async {
+    if (_isDisposed) return;
+
     // Stop any existing sequence before starting a new one
     stop();
 
@@ -126,6 +141,7 @@ class HapticFlowController extends ChangeNotifier {
       return;
     }
 
+    final sessionId = ++_sessionCounter;
     final localToken = CancellationToken();
     _activeCancellationToken = localToken;
 
@@ -151,6 +167,8 @@ class HapticFlowController extends ChangeNotifier {
     try {
       while (isInfinite || _currentLoopIteration < targetLoops) {
         for (var i = 0; i < sequence.length; i++) {
+          if (_isDisposed || _sessionCounter != sessionId) return;
+
           if (localToken.isCancelled || (cancelToken?.isCancelled ?? false)) {
             _status = HapticPlaybackStatus.cancelled;
             _emitEvent();
@@ -160,6 +178,7 @@ class HapticFlowController extends ChangeNotifier {
           // Handle paused state
           if (_status == HapticPlaybackStatus.paused && _pauseCompleter != null) {
             await _pauseCompleter!.future;
+            if (_isDisposed || _sessionCounter != sessionId) return;
             if (localToken.isCancelled || (cancelToken?.isCancelled ?? false)) {
               _status = HapticPlaybackStatus.cancelled;
               _emitEvent();
@@ -181,7 +200,11 @@ class HapticFlowController extends ChangeNotifier {
           if (step.isTactile) {
             await _driver.trigger(step.type);
           } else if (step.type == HapticStepType.custom && step.customAction != null) {
-            await step.customAction!();
+            try {
+              await step.customAction!();
+            } catch (e, st) {
+              debugPrint('HapticFlowController: Custom action error suppressed: $e\n$st');
+            }
           }
 
           // Await step duration
@@ -193,16 +216,20 @@ class HapticFlowController extends ChangeNotifier {
         _currentLoopIteration++;
       }
 
-      _status = HapticPlaybackStatus.completed;
-      _emitEvent();
+      if (_sessionCounter == sessionId && !_isDisposed) {
+        _status = HapticPlaybackStatus.completed;
+        _emitEvent();
+      }
     } catch (e, st) {
       if (e is! HapticCancelledException) {
         debugPrint('HapticFlowController playback error: $e\n$st');
       }
-      _status = HapticPlaybackStatus.cancelled;
-      _emitEvent();
+      if (_sessionCounter == sessionId && !_isDisposed) {
+        _status = HapticPlaybackStatus.cancelled;
+        _emitEvent();
+      }
     } finally {
-      if (_activeCancellationToken == localToken) {
+      if (_sessionCounter == sessionId && !_isDisposed) {
         _activeCancellationToken = null;
         _currentStep = null;
         _currentStepIndex = -1;
@@ -214,7 +241,7 @@ class HapticFlowController extends ChangeNotifier {
 
   /// Pauses the active sequence playback.
   void pause() {
-    if (_status != HapticPlaybackStatus.playing) return;
+    if (_isDisposed || _status != HapticPlaybackStatus.playing) return;
     _status = HapticPlaybackStatus.paused;
     _pauseCompleter = Completer<void>();
     _cancelActiveSleep();
@@ -223,7 +250,7 @@ class HapticFlowController extends ChangeNotifier {
 
   /// Resumes playback if currently paused.
   void resume() {
-    if (_status != HapticPlaybackStatus.paused) return;
+    if (_isDisposed || _status != HapticPlaybackStatus.paused) return;
     _status = HapticPlaybackStatus.playing;
     if (_pauseCompleter != null && !_pauseCompleter!.isCompleted) {
       _pauseCompleter!.complete();
@@ -244,7 +271,7 @@ class HapticFlowController extends ChangeNotifier {
     _pauseCompleter = null;
     _currentStep = null;
     _currentStepIndex = -1;
-    if (_status != HapticPlaybackStatus.idle) {
+    if (_status != HapticPlaybackStatus.idle && !_isDisposed) {
       _status = HapticPlaybackStatus.cancelled;
       _emitEvent();
       _status = HapticPlaybackStatus.idle;
@@ -267,7 +294,7 @@ class HapticFlowController extends ChangeNotifier {
     CancellationToken token1,
     CancellationToken? token2,
   ) {
-    if (token1.isCancelled || (token2?.isCancelled ?? false)) {
+    if (token1.isCancelled || (token2?.isCancelled ?? false) || _isDisposed) {
       return Future.value();
     }
 
@@ -292,6 +319,8 @@ class HapticFlowController extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     stop();
     _eventController.close();
     super.dispose();
@@ -302,24 +331,6 @@ class HapticFlowController extends ChangeNotifier {
 ///
 /// Provides quick one-line calls to play sequences, presets, or individual
 /// tactile pulses without managing controller lifecycles.
-///
-/// Example:
-/// ```dart
-/// // Play a single pulse
-/// await HapticFlow.light();
-///
-/// // Play a choreography preset
-/// await HapticFlow.play(HapticPresets.heartbeat);
-///
-/// // Compose on the fly
-/// await HapticFlow.play(
-///   HapticSequence.builder()
-///     .light()
-///     .pause(Duration(milliseconds: 100))
-///     .heavy()
-///     .build()
-/// );
-/// ```
 class HapticFlow {
   HapticFlow._();
 
