@@ -3,12 +3,19 @@ import '../engine/haptic_flow_controller.dart';
 import '../models/haptic_pattern.dart';
 import '../models/haptic_sequence.dart';
 import '../models/haptic_step.dart';
+import '../security/haptic_safety_policy.dart';
 import '../widgets/haptic_feedback_boundary.dart';
 
 /// Ergonomic haptic extension methods on [BuildContext].
 extension HapticContextExtension on BuildContext {
   /// Whether haptic feedback is allowed within the current context boundary.
-  bool get isHapticEnabled => mounted && HapticFeedbackBoundary.isEnabled(this);
+  bool get isHapticEnabled {
+    if (!mounted) return false;
+    final boundary = HapticFeedbackBoundary.of(this);
+    if (!boundary.enabled) return false;
+    if (boundary.privacyMode == HapticPrivacyMode.mute) return false;
+    return true;
+  }
 
   /// Triggers a light impact haptic pulse.
   Future<void> hapticLight() async {
@@ -61,13 +68,21 @@ extension HapticContextExtension on BuildContext {
   }
 
   /// Plays a full [HapticSequence] or individual [HapticStep] within this context,
-  /// honoring ambient [HapticFeedbackBoundary] scaling and enablement.
+  /// honoring ambient [HapticFeedbackBoundary] scaling, privacy mode, and enablement.
   Future<void> playHaptic(
     dynamic sequenceOrStep, {
     CancellationToken? cancelToken,
   }) async {
     if (!mounted || !isHapticEnabled) return;
     final boundary = HapticFeedbackBoundary.of(this);
+    if (boundary.privacyMode == HapticPrivacyMode.mute) return;
+
+    if (boundary.safetyPolicy != null) {
+      HapticFlow.safetyPolicy = boundary.safetyPolicy!;
+    }
+    if (boundary.privacyMode != null) {
+      HapticFlow.privacyMode = boundary.privacyMode!;
+    }
 
     if (sequenceOrStep is HapticSequence) {
       final scaledSeq = sequenceOrStep.scaled(

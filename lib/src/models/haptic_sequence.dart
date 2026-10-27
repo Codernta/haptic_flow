@@ -35,7 +35,12 @@ class HapticSequence {
   static HapticSequenceBuilder builder([String? name]) =>
       HapticSequenceBuilder(name);
 
-  /// Compiles a sequence from a tactile shorthand string [pattern] with safe length limits.
+  static final Map<String, HapticSequence> _patternCache =
+      <String, HapticSequence>{};
+  static const int _maxPatternCacheSize = 128;
+
+  /// Compiles a sequence from a tactile shorthand string [pattern] with safe length limits
+  /// and high-performance memoization cache.
   ///
   /// Key:
   /// * `.` or `L` / `l` -> [HapticStep.light]
@@ -52,6 +57,15 @@ class HapticSequence {
     String? name,
     int loopCount = 1,
   }) {
+    final isStandard = tickDuration == const Duration(milliseconds: 50) &&
+        pauseDuration == const Duration(milliseconds: 100) &&
+        name == null &&
+        loopCount == 1;
+
+    if (isStandard && _patternCache.containsKey(pattern)) {
+      return _patternCache[pattern]!;
+    }
+
     final sanitizedPattern = pattern.length > maxPatternLength
         ? pattern.substring(0, maxPatternLength)
         : pattern;
@@ -95,7 +109,14 @@ class HapticSequence {
           break;
       }
     }
-    return HapticSequence(steps, name: name, loopCount: loopCount);
+    final sequence = HapticSequence(steps, name: name, loopCount: loopCount);
+    if (isStandard) {
+      if (_patternCache.length >= _maxPatternCacheSize) {
+        _patternCache.remove(_patternCache.keys.first);
+      }
+      _patternCache[pattern] = sequence;
+    }
+    return sequence;
   }
 
   /// The list of tactile steps and pauses in this sequence.
@@ -236,6 +257,61 @@ class HapticSequence {
       loopCount: loopCount ?? this.loopCount,
       intensityScale: safeIntensity,
       speedScale: safeSpeed,
+    );
+  }
+
+  /// Converts this [HapticSequence] into a JSON-encodable map.
+  Map<String, dynamic> toJson() => {
+        'steps': steps.map((s) => s.toJson()).toList(),
+        if (name != null) 'name': name,
+        'loopCount': loopCount,
+        'intensityScale': intensityScale,
+        'speedScale': speedScale,
+      };
+
+  /// Constructs a [HapticSequence] from a JSON map with strict schema and bounds validation.
+  factory HapticSequence.fromJson(Map<String, dynamic> json) {
+    final rawSteps = json['steps'];
+    final steps = <HapticStep>[];
+    if (rawSteps is List) {
+      for (final item in rawSteps) {
+        if (steps.length >= maxSequenceSteps) break;
+        if (item is Map<String, dynamic>) {
+          steps.add(HapticStep.fromJson(item));
+        } else if (item is Map) {
+          steps.add(HapticStep.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+
+    final rawName = json['name']?.toString();
+    final name = rawName != null && rawName.length > 200
+        ? rawName.substring(0, 200)
+        : rawName;
+
+    final rawLoop = json['loopCount'];
+    final loopCount = (rawLoop is num && !rawLoop.isNaN && !rawLoop.isInfinite)
+        ? rawLoop.toInt().clamp(0, 1000000)
+        : 1;
+
+    final rawIntensity = json['intensityScale'];
+    final intensityScale =
+        (rawIntensity is num && !rawIntensity.isNaN && !rawIntensity.isInfinite)
+            ? rawIntensity.toDouble().clamp(0.0, 10.0)
+            : 1.0;
+
+    final rawSpeed = json['speedScale'];
+    final speedScale =
+        (rawSpeed is num && !rawSpeed.isNaN && !rawSpeed.isInfinite)
+            ? rawSpeed.toDouble().clamp(0.01, 100.0)
+            : 1.0;
+
+    return HapticSequence(
+      steps,
+      name: name,
+      loopCount: loopCount,
+      intensityScale: intensityScale,
+      speedScale: speedScale,
     );
   }
 

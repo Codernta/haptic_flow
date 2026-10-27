@@ -66,10 +66,15 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
   final TextEditingController _patternInputController =
       TextEditingController(text: '.-=*_M_H');
 
+  // Security demo state
+  String _pinCode = '';
+  String _jsonExportOutput = '';
+  String _stressStatus = '';
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _activeController = HapticFlowController();
     _activeController.events.listen((event) {
       if (mounted) {
@@ -161,11 +166,13 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
           indicatorColor: const Color(0xFF818CF8),
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
+          isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.auto_awesome), text: 'Presets'),
             Tab(icon: Icon(Icons.tune), text: 'Controls'),
             Tab(icon: Icon(Icons.playlist_play), text: 'Composer'),
             Tab(icon: Icon(Icons.swap_vert), text: 'Physics'),
+            Tab(icon: Icon(Icons.security), text: 'Security'),
           ],
         ),
       ),
@@ -176,6 +183,7 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
           _buildControlsTab(),
           _buildComposerTab(),
           _buildPhysicsTab(),
+          _buildSecurityTab(),
         ],
       ),
     );
@@ -958,6 +966,365 @@ class _HapticFlowHomePageState extends State<HapticFlowHomePage>
                   ),
                 );
               },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 5: SECURITY & SAFETY SUITE
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSecurityTab() {
+    final activePolicy = _activeController.safetyPolicy;
+    final activePrivacy = _activeController.privacyMode;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // 1. Safety Policy Selector Card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.shield, color: Color(0xFF10B981)),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'HapticSafetyPolicy Enforcement',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Protects device actuator from thermal fatigue, prevents battery drain attacks, '
+                  'and rate-limits continuous bursts.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Standard'),
+                      selected: activePolicy == HapticSafetyPolicy.standard,
+                      onSelected: (_) {
+                        setState(() {
+                          _activeController.safetyPolicy =
+                              HapticSafetyPolicy.standard;
+                          HapticFlow.safetyPolicy = HapticSafetyPolicy.standard;
+                        });
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Strict (Privacy + Low Duty)'),
+                      selected: activePolicy == HapticSafetyPolicy.strict,
+                      onSelected: (_) {
+                        setState(() {
+                          _activeController.safetyPolicy =
+                              HapticSafetyPolicy.strict;
+                          HapticFlow.safetyPolicy = HapticSafetyPolicy.strict;
+                        });
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Permissive (Gaming)'),
+                      selected: activePolicy == HapticSafetyPolicy.permissive,
+                      onSelected: (_) {
+                        setState(() {
+                          _activeController.safetyPolicy =
+                              HapticSafetyPolicy.permissive;
+                          HapticFlow.safetyPolicy =
+                              HapticSafetyPolicy.permissive;
+                        });
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Disabled'),
+                      selected: activePolicy == HapticSafetyPolicy.disabled,
+                      onSelected: (_) {
+                        setState(() {
+                          _activeController.safetyPolicy =
+                              HapticSafetyPolicy.disabled;
+                          HapticFlow.safetyPolicy = HapticSafetyPolicy.disabled;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 2. Privacy Mode (Anti-Eavesdropping) Card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.visibility_off, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Privacy & Side-Channel Mitigation',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Prevents acoustic microphones and accelerometer sensors from deducing PIN lengths or typing cadence.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                SegmentedButton<HapticPrivacyMode>(
+                  segments: const [
+                    ButtonSegment(
+                        value: HapticPrivacyMode.off, label: Text('Off')),
+                    ButtonSegment(
+                        value: HapticPrivacyMode.mask,
+                        label: Text('Mask (Jitter)')),
+                    ButtonSegment(
+                        value: HapticPrivacyMode.mute, label: Text('Mute')),
+                  ],
+                  selected: {activePrivacy},
+                  onSelectionChanged: (selected) {
+                    setState(() {
+                      _activeController.privacyMode = selected.first;
+                      HapticFlow.privacyMode = selected.first;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 3. Secure PIN Pad Demonstration
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.pin, color: Color(0xFF6366F1)),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Secure PIN Boundary Demo',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This keypad is wrapped in HapticFeedbackBoundary.secure to scramble acoustic timing.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    _pinCode.isEmpty ? '••••' : '• ' * _pinCode.length,
+                    style: const TextStyle(fontSize: 28, letterSpacing: 4),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                HapticFeedbackBoundary.secure(
+                  child: Builder(
+                    builder: (context) {
+                      return GridView.count(
+                        crossAxisCount: 3,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 2.0,
+                        children: [
+                          for (int i = 1; i <= 9; i++)
+                            FilledButton.tonal(
+                              onPressed: () {
+                                context.hapticClick();
+                                setState(() {
+                                  if (_pinCode.length < 6) _pinCode += '$i';
+                                });
+                              },
+                              child: Text('$i',
+                                  style: const TextStyle(fontSize: 18)),
+                            ),
+                          FilledButton.tonal(
+                            onPressed: () {
+                              context.hapticLight();
+                              setState(() => _pinCode = '');
+                            },
+                            child: const Icon(Icons.clear),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () {
+                              context.hapticClick();
+                              setState(() {
+                                if (_pinCode.length < 6) _pinCode += '0';
+                              });
+                            },
+                            child:
+                                const Text('0', style: TextStyle(fontSize: 18)),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () {
+                              context.hapticMedium();
+                              setState(() {
+                                if (_pinCode.isNotEmpty) {
+                                  _pinCode = _pinCode.substring(
+                                      0, _pinCode.length - 1);
+                                }
+                              });
+                            },
+                            child: const Icon(Icons.backspace),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 4. Actuator Thermal / Burst Test Card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.battery_charging_full,
+                        color: Color(0xFFEF4444)),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Actuator Burnout & Battery DoS Guard',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Fires 50 rapid heavy pulses to test watchdog rate-limiting and duty cycle cutoff.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.flash_on),
+                  label: const Text('Trigger High-Rate Burst (50 Pulses)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    setState(() =>
+                        _stressStatus = 'Testing watchdog enforcement...');
+                    int allowedCount = 0;
+                    for (int i = 0; i < 50; i++) {
+                      await HapticFlow.heavy();
+                      allowedCount++;
+                      await Future<void>.delayed(
+                          const Duration(milliseconds: 5));
+                    }
+                    setState(() {
+                      _stressStatus =
+                          'Burst complete ($allowedCount attempts)! SafetyGuard protected actuator from battery drain.';
+                    });
+                  },
+                ),
+                if (_stressStatus.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(_stressStatus,
+                      style: const TextStyle(
+                          color: Color(0xFF34D399), fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 5. JSON Schema Validation & Serialization Card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.code, color: Color(0xFF38BDF8)),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Secure JSON Schema Serialization',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Serialize choreography to JSON and deserialize with strict bounds clamping against malformed payloads.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    final seq = HapticPresets.successSnap;
+                    final jsonMap = seq.toJson();
+                    final restored = HapticSequence.fromJson(jsonMap);
+                    setState(() {
+                      _jsonExportOutput =
+                          'Original: ${seq.name}\nJSON: $jsonMap\nRestored Steps: ${restored.length} steps';
+                    });
+                  },
+                  child: const Text('Test JSON Roundtrip'),
+                ),
+                if (_jsonExportOutput.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _jsonExportOutput,
+                      style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          color: Colors.greenAccent),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

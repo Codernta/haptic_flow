@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../engine/haptic_flow_controller.dart';
 import '../models/haptic_step.dart';
+import '../security/haptic_safety_policy.dart';
+import 'haptic_feedback_boundary.dart';
 
 /// A [GestureDetector] wrapper that enriches standard touch gestures with
 /// tactile haptic feedback.
 ///
 /// Automatically fires customizable haptic steps upon tap, double-tap, and
-/// long-press events.
+/// long-press events. Respects ambient [HapticFeedbackBoundary] configurations.
 class HapticGestureDetector extends StatelessWidget {
   /// Creates a [HapticGestureDetector].
   const HapticGestureDetector({
@@ -66,12 +68,21 @@ class HapticGestureDetector extends StatelessWidget {
   /// An optional dedicated [HapticFlowController].
   final HapticFlowController? controller;
 
-  void _trigger(HapticStep step) {
+  void _trigger(BuildContext context, HapticStep step) {
     if (!enableHaptics) return;
+    if (!HapticFeedbackBoundary.isEnabled(context)) return;
+    final boundary = HapticFeedbackBoundary.of(context);
+    if (boundary.privacyMode == HapticPrivacyMode.mute) return;
+
+    final scaledStep = step.scaled(
+      intensityScale: boundary.intensityScale,
+      speedScale: boundary.speedScale,
+    );
+
     if (controller != null) {
-      controller!.playStep(step);
+      controller!.playStep(scaledStep);
     } else {
-      HapticFlow.playStep(step);
+      HapticFlow.playStep(scaledStep);
     }
   }
 
@@ -81,25 +92,25 @@ class HapticGestureDetector extends StatelessWidget {
       behavior: behavior,
       onTap: onTap != null
           ? () {
-              _trigger(tapStep);
+              _trigger(context, tapStep);
               onTap!();
             }
           : null,
       onDoubleTap: onDoubleTap != null
           ? () {
-              _trigger(doubleTapStep);
+              _trigger(context, doubleTapStep);
               onDoubleTap!();
             }
           : null,
       onLongPress: onLongPress != null
           ? () {
-              _trigger(longPressStep);
+              _trigger(context, longPressStep);
               onLongPress!();
             }
           : null,
       onSecondaryTap: onSecondaryTap != null
           ? () {
-              _trigger(tapStep);
+              _trigger(context, tapStep);
               onSecondaryTap!();
             }
           : null,

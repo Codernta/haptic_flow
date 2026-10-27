@@ -73,11 +73,13 @@ class SystemHapticDriver extends HapticDriver {
   /// Whether to print debug warnings when haptics fail or are unsupported.
   final bool enableLogging;
 
-  static DateTime _lastInvokeTime = DateTime.fromMillisecondsSinceEpoch(0);
+  static final Stopwatch _stopwatch = Stopwatch()..start();
+  static int _lastInvokeMicros = -100000;
 
   /// Minimum spacing between hardware driver invokes (10ms) to prevent hardware thermal
   /// throttling and platform channel flooding.
   static const Duration minHardwareInterval = Duration(milliseconds: 10);
+  static const int _minHardwareIntervalMicros = 10000;
 
   @override
   bool get isSupported {
@@ -101,12 +103,12 @@ class SystemHapticDriver extends HapticDriver {
   Future<void> _safeInvoke(Future<void> Function() action) async {
     if (!isSupported) return;
 
-    final now = DateTime.now();
-    if (now.difference(_lastInvokeTime) < minHardwareInterval) {
+    final nowMicros = _stopwatch.elapsedMicroseconds;
+    if (nowMicros - _lastInvokeMicros < _minHardwareIntervalMicros) {
       // Gracefully coalesce rapid bursts to protect device hardware
       return;
     }
-    _lastInvokeTime = now;
+    _lastInvokeMicros = nowMicros;
 
     try {
       await action();
@@ -193,7 +195,8 @@ class MockHapticDriver extends HapticDriver {
   void _record(HapticStepType type, [double intensity = 1.0]) {
     if (!isSupported) return;
     if (_records.length >= maxRecordLimit) {
-      _records.removeAt(0); // Evict oldest record
+      // Amortized eviction to prevent O(N) shifts on high-throughput tests
+      _records.removeRange(0, maxRecordLimit ~/ 10);
     }
     _records.add(
       RecordedHapticEvent(

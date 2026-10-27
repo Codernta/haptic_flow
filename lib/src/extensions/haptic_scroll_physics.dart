@@ -35,13 +35,14 @@ class HapticScrollPhysics extends ScrollPhysics {
   /// Whether to fire tactile feedback when reaching minimum/maximum scroll extents.
   final bool triggerAtEdges;
 
-  static DateTime _lastHapticTime = DateTime.now();
+  static final Stopwatch _stopwatch = Stopwatch()..start();
+  static int _lastHapticMicros = -100000;
 
   static void _fireHaptic(HapticStep step) {
-    final now = DateTime.now();
-    // Throttle boundary feedback to avoid overwhelming the platform bridge
-    if (now.difference(_lastHapticTime).inMilliseconds < 35) return;
-    _lastHapticTime = now;
+    final nowMicros = _stopwatch.elapsedMicroseconds;
+    // Throttle boundary feedback to avoid overwhelming the platform bridge (35ms = 35,000 micros)
+    if (nowMicros - _lastHapticMicros < 35000) return;
+    _lastHapticMicros = nowMicros;
     HapticFlow.playStep(step);
   }
 

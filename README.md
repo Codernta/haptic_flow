@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/Codernta/haptic_flow/main/assets/haptic_flow_poster.png" alt="HapticFlow Poster" width="100%" style="border-radius: 16px;" />
 </p>
 
-[![pub package](https://img.shields.io/badge/pub-v0.1.2-blue.svg)](https://pub.dev/packages/haptic_flow)
+[![pub package](https://img.shields.io/badge/pub-v0.1.3-blue.svg)](https://pub.dev/packages/haptic_flow)
 [![CI Pipeline](https://github.com/Codernta/haptic_flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Codernta/haptic_flow/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 [![Flutter Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20Web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](https://flutter.dev)
@@ -18,11 +18,15 @@ Compose rhythmic tactile sequences, map gestures and scrolling to dynamic physic
 ## ✨ Features
 
 * 🎼 **Declarative Choreography**: Compose complex, multi-stage tactile sequences using a fluent builder, sequence concatenation (`+`, `*`), and shorthand pattern syntax.
+* 🛡️ **Hardware & Battery Protection**: Built-in `HapticSafetyGuard` watchdog defends against actuator motor burnout, thermal degradation, battery-drain DoS attacks, and event-loop starvation.
+* 🔒 **Privacy & Anti-Eavesdropping**: `HapticPrivacyMode` (`mask`, `mute`) scrambles timing cadence on sensitive screens (PIN keypads, OTP, passwords) to defeat acoustic and accelerometer side-channel eavesdropping.
+* ⚡ **Zero-Allocation Optimizations**: Monotonic microsecond clock tracking via `Stopwatch`, cached preset singletons, LRU pattern compilation memoization, and leak-free `CancellationToken` listeners.
+* 💾 **Secure JSON Serialization**: Export and deserialize choreographies safely with strict schema validation and bounds clamping against malicious payloads.
 * 🎛️ **Tactile Widgets**: Drop-in widgets like `HapticSlider` (with detents, center snaps, and edge bumps), `HapticPickerWheel` (mechanical rotary tumblers), and `HapticGestureDetector`.
 * 📜 **Scroll Physics**: `HapticScrollPhysics` automatically fires physical tactile feedback on boundary collisions, overscroll bounces, and customizable scroll distance increments.
 * 📦 **Real-World Tactile Presets**: Out-of-the-box physical choreographies (`mechanicalDial`, `heartbeat`, `typewriter`, `successSnap`, `warningBuzz`, `diceRoll`, and more).
 * 🛡️ **Platform Safe**: Graceful no-op fallback on web and desktop platforms without unhandled channel exceptions.
-* ♿ **Accessibility First**: Scoped muting and scaling via `HapticFeedbackBoundary`, plus global master toggle support.
+* ♿ **Accessibility First**: Scoped muting, privacy masking, and scaling via `HapticFeedbackBoundary`, plus global master toggle support.
 * 🧪 **100% Testable**: Built with a decoupled `HapticDriver` abstraction and bundled `MockHapticDriver` for deterministic unit and widget testing.
 
 ---
@@ -33,7 +37,7 @@ Add `haptic_flow` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  haptic_flow: ^0.1.2
+  haptic_flow: ^0.1.3
 ```
 
 Import the package:
@@ -217,6 +221,67 @@ ListView.builder(
   itemBuilder: (context, index) => ListTile(title: Text('Item $index')),
 )
 ```
+
+---
+
+## 🔒 Security, Safety & Privacy
+
+### 1. Hardware Protection & Battery DoS Defense
+Uncontrolled or malicious haptic sequences (e.g. from server-driven configs or game scripts) can cause motor overheating, battery depletion, or tactile numbness. `HapticFlow` integrates a built-in safety watchdog enforcing:
+* **Rate-limiting**: Prevents platform channel flooding (caps pulses per second).
+* **Continuous Cutoff**: Automatically halts non-stop vibrations exceeding `maxContinuousDuration` until a mandatory cooldown resting period passes.
+* **Duty-Cycle Limiting**: Restricts active vibration time to a safe fraction of any sliding window.
+* **Event-Loop Starvation Defense**: Injects cooperative micro-yields on zero-duration or infinite sequences so Flutter frames never drop.
+* **Sandboxed Custom Actions**: Custom closures are automatically governed by `customActionTimeout`.
+
+```dart
+// Configure global safety policy
+HapticFlow.safetyPolicy = HapticSafetyPolicy.standard; // standard, strict, permissive, or disabled
+
+// Or configure per-controller
+final controller = HapticFlowController(
+  safetyPolicy: HapticSafetyPolicy.strict,
+);
+```
+
+### 2. Side-Channel Mitigation (Anti-Eavesdropping)
+Microphones and accelerometer sensors on mobile devices can record physical vibrations to reconstruct entered PINs, keystroke cadences, and password lengths.
+
+Use `HapticFeedbackBoundary.secure` to protect sensitive input forms:
+
+```dart
+// Scrambles keystroke timing jitter and applies strict safety policy
+HapticFeedbackBoundary.secure(
+  child: PinCodePad(),
+)
+
+// Or explicitly choose privacy mode
+HapticFeedbackBoundary(
+  privacyMode: HapticPrivacyMode.mask, // or HapticPrivacyMode.mute
+  child: PasswordField(),
+)
+```
+
+### 3. Secure JSON Schema Serialization
+Safely transfer choreographies over WebSocket or REST APIs with strict bounds clamping:
+
+```dart
+// Serialize to JSON Map
+final jsonMap = sequence.toJson();
+
+// Deserialize safely (validates types and caps max steps)
+final safeSequence = HapticSequence.fromJson(jsonMap);
+```
+
+---
+
+## ⚡ Performance Optimizations
+
+* **Zero-Allocation Monotonic Clock**: Hot paths in `SystemHapticDriver`, `HapticScrollPhysics`, and `HapticSlider` utilize monotonic high-precision timestamps (`Stopwatch`), eliminating thousands of short-lived `DateTime` allocations at 60/120Hz.
+* **Immutable Preset Singletons**: `HapticPresets.*` instances are lazily compiled once and cached as singletons.
+* **Pattern Memoization Cache**: Frequently used shorthand strings compiled via `HapticSequence.fromPattern` are stored in an LRU cache.
+* **Unobserved Event Bypass**: Sequence iterations avoid allocating `HapticPlaybackEvent` objects when no listeners or streams are attached.
+* **Leak-Free Cancellation Tokens**: `CancellationToken` listeners are deregistered upon completion to prevent closure retention.
 
 ---
 

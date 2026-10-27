@@ -14,9 +14,9 @@ class CancellationToken {
   void cancel() {
     if (_isCancelled) return;
     _isCancelled = true;
-    for (final callback in List.of(_listeners)) {
+    for (int i = 0; i < _listeners.length; i++) {
       try {
-        callback();
+        _listeners[i]();
       } catch (e, st) {
         debugPrint('Error in CancellationToken listener: $e\n$st');
       }
@@ -26,12 +26,15 @@ class CancellationToken {
 
   /// Registers a callback to be invoked immediately upon cancellation.
   /// If the token is already cancelled, the callback is invoked synchronously.
-  void onCancel(VoidCallback callback) {
+  ///
+  /// Returns a [VoidCallback] that unregisters the callback when invoked.
+  VoidCallback onCancel(VoidCallback callback) {
     if (_isCancelled) {
       callback();
-      return;
+      return () {};
     }
     _listeners.add(callback);
+    return () => _listeners.remove(callback);
   }
 
   /// Throws a [HapticCancelledException] if this token has been cancelled.

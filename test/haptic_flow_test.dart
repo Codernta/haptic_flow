@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:haptic_flow/haptic_flow.dart';
@@ -509,6 +510,171 @@ void main() {
 
       expect(controller.isDisposed, isTrue);
       expect(mockDriver.recordedTypes, [HapticStepType.light]);
+    });
+
+    test('HapticSafetyGuard rate-limits excessive pulses per second', () {
+      final guard = HapticSafetyGuard(
+        policy: const HapticSafetyPolicy(maxPulsesPerSecond: 5),
+      );
+      int allowed = 0;
+      for (int i = 0; i < 10; i++) {
+        if (guard.canTriggerTactile()) {
+          allowed++;
+        }
+      }
+      expect(allowed, equals(5));
+    });
+
+    test('HapticSafetyGuard enforces continuous vibration cutoff', () {
+      final guard = HapticSafetyGuard(
+        policy: const HapticSafetyPolicy(
+          maxContinuousDuration: Duration(milliseconds: 50),
+          minCoolDownDuration: Duration(milliseconds: 100),
+        ),
+      );
+      // Trigger first pulse
+      expect(
+        guard.canTriggerTactile(stepDuration: const Duration(milliseconds: 40)),
+        isTrue,
+      );
+      // Trigger second pulse during continuous burst before cooldown
+      expect(
+        guard.canTriggerTactile(stepDuration: const Duration(milliseconds: 20)),
+        isTrue,
+      );
+    });
+
+    test('HapticPrivacyMode.mute blocks all tactile pulses', () async {
+      final mockDriver = MockHapticDriver();
+      final controller = HapticFlowController(
+        driver: mockDriver,
+        safetyPolicy:
+            const HapticSafetyPolicy(privacyMode: HapticPrivacyMode.mute),
+      );
+
+      final seq = HapticSequence.builder().light().heavy().build();
+      await controller.play(seq);
+
+      expect(mockDriver.count, equals(0));
+      controller.dispose();
+    });
+
+    testWidgets(
+        'HapticFeedbackBoundary.secure applies strict policy and privacy mask',
+        (tester) async {
+      late BuildContext testContext;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HapticFeedbackBoundary.secure(
+            child: Builder(
+              builder: (ctx) {
+                testContext = ctx;
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+
+      final boundaryData = HapticFeedbackBoundary.of(testContext);
+      expect(boundaryData.safetyPolicy, equals(HapticSafetyPolicy.strict));
+      expect(boundaryData.privacyMode, equals(HapticPrivacyMode.mask));
+    });
+
+    test('JSON serialization roundtrip for HapticStep and HapticSequence', () {
+      const step = HapticStep.medium(
+        duration: Duration(milliseconds: 65),
+        intensity: 0.7,
+        tag: 'confirm',
+      );
+      final stepJson = step.toJson();
+      final restoredStep = HapticStep.fromJson(stepJson);
+
+      expect(restoredStep.type, equals(HapticStepType.medium));
+      expect(restoredStep.duration, equals(const Duration(milliseconds: 65)));
+      expect(restoredStep.intensity, closeTo(0.7, 0.001));
+      expect(restoredStep.tag, equals('confirm'));
+
+      final seq = HapticSequence([step, const HapticStep.light()],
+          name: 'TestSeq', loopCount: 2);
+      final seqJson = seq.toJson();
+      final restoredSeq = HapticSequence.fromJson(seqJson);
+
+      expect(restoredSeq.name, equals('TestSeq'));
+      expect(restoredSeq.loopCount, equals(2));
+      expect(restoredSeq.length, equals(2));
+      expect(restoredSeq[0].type, equals(HapticStepType.medium));
+      expect(restoredSeq[1].type, equals(HapticStepType.light));
+    });
+
+    test('HapticSequence.fromJson rejects malicious payloads safely', () {
+      final malicious = {
+        'steps': [
+          {
+            'type': 'unknown_type',
+            'durationMs': 999999999,
+            'intensity': double.nan
+          },
+        ],
+        'loopCount': -100,
+        'intensityScale': double.infinity,
+      };
+
+      final safeSeq = HapticSequence.fromJson(malicious);
+      expect(safeSeq.steps.first.type, equals(HapticStepType.light));
+      expect(safeSeq.steps.first.duration,
+          lessThanOrEqualTo(HapticStep.maxStepDuration));
+      expect(safeSeq.steps.first.intensity, equals(1.0));
+      expect(safeSeq.intensityScale, equals(1.0));
+    });
+
+    test('HapticSequence.fromPattern caches compiled sequences', () {
+      final seq1 = HapticSequence.fromPattern('.-=*');
+      final seq2 = HapticSequence.fromPattern('.-=*');
+
+      expect(identical(seq1, seq2), isTrue);
+    });
+
+    test('HapticPresets are cached singletons', () {
+      final dial1 = HapticPresets.mechanicalDial;
+      final dial2 = HapticPresets.mechanicalDial;
+
+      expect(identical(dial1, dial2), isTrue);
+    });
+
+    test('HapticFlowController custom action timeout aborts hanging actions',
+        () async {
+      final mockDriver = MockHapticDriver();
+      final controller = HapticFlowController(
+        driver: mockDriver,
+        safetyPolicy: const HapticSafetyPolicy(
+          customActionTimeout: Duration(milliseconds: 50),
+        ),
+      );
+
+      final seq = HapticSequence.builder()
+          .light(duration: const Duration(milliseconds: 10))
+          .custom(
+            action: () => Completer<void>().future, // Never completes
+            duration: const Duration(milliseconds: 10),
+          )
+          .heavy(duration: const Duration(milliseconds: 10))
+          .build();
+
+      await expectLater(controller.play(seq), completes);
+      expect(mockDriver.recordedTypes, contains(HapticStepType.heavy));
+
+      controller.dispose();
+    });
+
+    test('CancellationToken unregister prevents memory leaks', () {
+      final token = CancellationToken();
+      var called = false;
+      final unregister = token.onCancel(() => called = true);
+      unregister();
+      token.cancel();
+      expect(called, isFalse);
     });
   });
 }

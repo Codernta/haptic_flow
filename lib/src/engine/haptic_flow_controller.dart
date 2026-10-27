@@ -4,6 +4,7 @@ import '../drivers/haptic_driver.dart';
 import '../models/haptic_pattern.dart';
 import '../models/haptic_sequence.dart';
 import '../models/haptic_step.dart';
+import '../security/haptic_safety_policy.dart';
 
 /// The core execution engine for haptic sequences and tactile choreography.
 ///
@@ -17,10 +18,17 @@ class HapticFlowController extends ChangeNotifier {
   /// Creates a [HapticFlowController].
   ///
   /// If [driver] is omitted, a [SystemHapticDriver] will be used.
-  HapticFlowController({HapticDriver? driver})
-      : _driver = driver ?? const SystemHapticDriver();
+  /// If [safetyPolicy] is omitted, [HapticSafetyPolicy.standard] is enforced.
+  HapticFlowController({
+    HapticDriver? driver,
+    HapticSafetyPolicy? safetyPolicy,
+  })  : _driver = driver ?? const SystemHapticDriver(),
+        _safetyGuard = HapticSafetyGuard(
+          policy: safetyPolicy ?? HapticSafetyPolicy.standard,
+        );
 
   HapticDriver _driver;
+  HapticSafetyGuard _safetyGuard;
 
   /// The active tactile hardware driver.
   HapticDriver get driver => _driver;
@@ -31,6 +39,25 @@ class HapticFlowController extends ChangeNotifier {
     _driver = newDriver;
     notifyListeners();
   }
+
+  /// The active safety policy enforcing rate-limiting, thermal protection, and anti-burnout guards.
+  HapticSafetyPolicy get safetyPolicy => _safetyGuard.policy;
+
+  /// Updates the safety policy.
+  set safetyPolicy(HapticSafetyPolicy policy) {
+    _safetyGuard = HapticSafetyGuard(policy: policy);
+  }
+
+  /// Privacy mode enforced on this controller.
+  HapticPrivacyMode get privacyMode => _safetyGuard.policy.privacyMode;
+
+  /// Updates the privacy mode.
+  set privacyMode(HapticPrivacyMode mode) {
+    _safetyGuard.policy = _safetyGuard.policy.copyWith(privacyMode: mode);
+  }
+
+  /// Resets internal safety rate-limiting and duty-cycle counters.
+  void resetSafetyCounters() => _safetyGuard.reset();
 
   /// Whether haptic playback is enabled on this controller.
   bool enabled = true;
@@ -91,7 +118,12 @@ class HapticFlowController extends ChangeNotifier {
   bool get isPlatformSupported => _driver.isSupported;
 
   void _emitEvent() {
-    if (_isDisposed || _eventController.isClosed) return;
+    if (_isDisposed) return;
+    final hasStreamListener =
+        !_eventController.isClosed && _eventController.hasListener;
+    if (!hasListeners && !hasStreamListener) {
+      return; // Skip allocating HapticPlaybackEvent when unobserved
+    }
     final event = HapticPlaybackEvent(
       status: _status,
       currentStepIndex: _currentStepIndex,
@@ -100,19 +132,26 @@ class HapticFlowController extends ChangeNotifier {
       loopIteration: _currentLoopIteration,
       totalLoops: _currentSequence?.loopCount ?? 1,
     );
-    _eventController.add(event);
-    notifyListeners();
+    if (hasStreamListener) {
+      _eventController.add(event);
+    }
+    if (hasListeners) {
+      notifyListeners();
+    }
   }
 
-  /// Plays a single [HapticStep] immediately with strict error boundary protection.
+  /// Plays a single [HapticStep] immediately with strict error boundary and safety protection.
   Future<void> playStep(HapticStep step) async {
     if (_isDisposed || !enabled) return;
     if (step.isTactile) {
-      await _driver.trigger(step.type);
+      if (_safetyGuard.canTriggerTactile(stepDuration: step.duration)) {
+        await _driver.trigger(step.type);
+      }
     } else if (step.type == HapticStepType.custom &&
         step.customAction != null) {
       try {
-        await step.customAction!();
+        await Future.sync(step.customAction!)
+            .timeout(_safetyGuard.policy.customActionTimeout);
       } catch (e, st) {
         debugPrint(
             'HapticFlowController: Custom action error suppressed: $e\n$st');
@@ -154,8 +193,8 @@ class HapticFlowController extends ChangeNotifier {
       }
     }
 
-    cancelToken?.onCancel(onCancelRequested);
-    localToken.onCancel(onCancelRequested);
+    final unhookExternal = cancelToken?.onCancel(onCancelRequested);
+    final unhookLocal = localToken.onCancel(onCancelRequested);
 
     _currentSequence = sequence;
     _currentStepIndex = -1;
@@ -168,6 +207,13 @@ class HapticFlowController extends ChangeNotifier {
 
     try {
       while (isInfinite || _currentLoopIteration < targetLoops) {
+        // Starvation defense: if sequence has 0 total duration, enforce cooperative yield
+        if (_safetyGuard.policy.preventEventLoopStarvation &&
+            sequence.totalDuration == Duration.zero) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          if (_isDisposed || _sessionCounter != sessionId) return;
+        }
+
         for (var i = 0; i < sequence.length; i++) {
           if (_isDisposed || _sessionCounter != sessionId) return;
 
@@ -199,22 +245,37 @@ class HapticFlowController extends ChangeNotifier {
           _currentStepIndex = i;
           _emitEvent();
 
-          // Execute step feedback
+          // Execute step feedback with safety watchdog check
           if (step.isTactile) {
-            await _driver.trigger(step.type);
+            if (_safetyGuard.canTriggerTactile(stepDuration: step.duration)) {
+              await _driver.trigger(step.type);
+            }
           } else if (step.type == HapticStepType.custom &&
               step.customAction != null) {
             try {
-              await step.customAction!();
+              await Future.sync(step.customAction!)
+                  .timeout(_safetyGuard.policy.customActionTimeout);
             } catch (e, st) {
               debugPrint(
                   'HapticFlowController: Custom action error suppressed: $e\n$st');
             }
           }
 
-          // Await step duration
+          // Await step duration (with privacy jitter if enabled)
           if (step.duration > Duration.zero) {
-            await _interruptibleDelay(step.duration, localToken, cancelToken);
+            var stepDelay = step.duration;
+            if (_safetyGuard.policy.privacyMode == HapticPrivacyMode.mask) {
+              final jitterMicros = _safetyGuard.getPrivacyJitterMicros();
+              final safeMicros = (stepDelay.inMicroseconds + jitterMicros)
+                  .clamp(1000, HapticStep.maxStepDuration.inMicroseconds);
+              stepDelay = Duration(microseconds: safeMicros);
+            }
+            await _interruptibleDelay(stepDelay, localToken, cancelToken);
+          } else if (_safetyGuard.policy.preventEventLoopStarvation &&
+              i > 0 &&
+              i % 50 == 0) {
+            // Cooperative yield for long bursts of zero-duration steps
+            await Future<void>.delayed(Duration.zero);
           }
         }
 
@@ -234,6 +295,8 @@ class HapticFlowController extends ChangeNotifier {
         _emitEvent();
       }
     } finally {
+      unhookExternal?.call();
+      unhookLocal();
       if (_sessionCounter == sessionId && !_isDisposed) {
         _activeCancellationToken = null;
         _currentStep = null;
@@ -357,6 +420,19 @@ class HapticFlow {
   /// Useful for respecting accessibility preferences or silent mode settings.
   static bool get enabled => defaultController.enabled;
   static set enabled(bool value) => defaultController.enabled = value;
+
+  /// Global safety policy enforced by the default controller.
+  static HapticSafetyPolicy get safetyPolicy => defaultController.safetyPolicy;
+  static set safetyPolicy(HapticSafetyPolicy policy) =>
+      defaultController.safetyPolicy = policy;
+
+  /// Global privacy mode enforced by the default controller (e.g. for masking sensitive inputs).
+  static HapticPrivacyMode get privacyMode => defaultController.privacyMode;
+  static set privacyMode(HapticPrivacyMode mode) =>
+      defaultController.privacyMode = mode;
+
+  /// Resets safety rate-limiting counters on the default controller.
+  static void resetSafetyCounters() => defaultController.resetSafetyCounters();
 
   /// Checks if the host platform supports physical haptic feedback.
   static bool get isPlatformSupported => defaultController.isPlatformSupported;

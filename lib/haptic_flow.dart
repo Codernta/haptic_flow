@@ -7,6 +7,9 @@ library;
 // Drivers
 export 'src/drivers/haptic_driver.dart';
 
+// Security & Safety
+export 'src/security/haptic_safety_policy.dart';
+
 // Models
 export 'src/models/haptic_pattern.dart';
 export 'src/models/haptic_sequence.dart';

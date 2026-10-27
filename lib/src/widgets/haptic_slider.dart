@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../engine/haptic_flow_controller.dart';
 import '../models/haptic_step.dart';
+import '../security/haptic_safety_policy.dart';
+import 'haptic_feedback_boundary.dart';
 
 /// A haptic-enhanced [Slider] that delivers dynamic physical feedback as the
 /// user drags the thumb across detents, intervals, and boundary edges.
@@ -130,7 +132,8 @@ class _HapticSliderState extends State<HapticSlider> {
   int? _lastIntervalIndex;
   bool _atMinEdge = false;
   bool _atMaxEdge = false;
-  DateTime _lastHapticTime = DateTime.now();
+  final Stopwatch _stopwatch = Stopwatch()..start();
+  int _lastHapticMicros = -100000;
 
   @override
   void initState() {
@@ -144,15 +147,24 @@ class _HapticSliderState extends State<HapticSlider> {
   }
 
   void _triggerStep(HapticStep step) {
-    final now = DateTime.now();
-    // Throttle detents to avoid saturating platform queues during fast sweeps (minimum 20ms gap)
-    if (now.difference(_lastHapticTime).inMilliseconds < 20) return;
-    _lastHapticTime = now;
+    if (!mounted || !HapticFeedbackBoundary.isEnabled(context)) return;
+    final boundary = HapticFeedbackBoundary.of(context);
+    if (boundary.privacyMode == HapticPrivacyMode.mute) return;
+
+    final nowMicros = _stopwatch.elapsedMicroseconds;
+    // Throttle detents to avoid saturating platform queues during fast sweeps (minimum 20ms = 20,000 micros)
+    if (nowMicros - _lastHapticMicros < 20000) return;
+    _lastHapticMicros = nowMicros;
+
+    final scaledStep = step.scaled(
+      intensityScale: boundary.intensityScale,
+      speedScale: boundary.speedScale,
+    );
 
     if (widget.controller != null) {
-      widget.controller!.playStep(step);
+      widget.controller!.playStep(scaledStep);
     } else {
-      HapticFlow.playStep(step);
+      HapticFlow.playStep(scaledStep);
     }
   }
 

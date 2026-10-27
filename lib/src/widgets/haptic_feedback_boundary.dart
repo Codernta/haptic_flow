@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import '../security/haptic_safety_policy.dart';
 
 /// Configuration data provided by a [HapticFeedbackBoundary].
 class HapticFeedbackBoundaryData {
@@ -7,6 +8,8 @@ class HapticFeedbackBoundaryData {
     this.enabled = true,
     this.intensityScale = 1.0,
     this.speedScale = 1.0,
+    this.safetyPolicy,
+    this.privacyMode,
   });
 
   /// Whether haptic feedback is permitted within this subtree.
@@ -18,6 +21,12 @@ class HapticFeedbackBoundaryData {
   /// Speed scaling factor for sequences played within this subtree.
   final double speedScale;
 
+  /// Optional scoped safety policy for this subtree.
+  final HapticSafetyPolicy? safetyPolicy;
+
+  /// Optional scoped privacy mode for this subtree.
+  final HapticPrivacyMode? privacyMode;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -25,14 +34,22 @@ class HapticFeedbackBoundaryData {
           runtimeType == other.runtimeType &&
           enabled == other.enabled &&
           (intensityScale - other.intensityScale).abs() < 0.0001 &&
-          (speedScale - other.speedScale).abs() < 0.0001;
+          (speedScale - other.speedScale).abs() < 0.0001 &&
+          safetyPolicy == other.safetyPolicy &&
+          privacyMode == other.privacyMode;
 
   @override
-  int get hashCode => Object.hash(enabled, intensityScale, speedScale);
+  int get hashCode => Object.hash(
+        enabled,
+        intensityScale,
+        speedScale,
+        safetyPolicy,
+        privacyMode,
+      );
 }
 
 /// An [InheritedWidget] that scopes haptic playback preferences (such as
-/// muting haptics or scaling intensity) to a subtree of the widget tree.
+/// muting haptics, scaling intensity, safety policy, or privacy masking) to a subtree of the widget tree.
 class HapticFeedbackBoundary extends InheritedWidget {
   /// Creates a [HapticFeedbackBoundary].
   const HapticFeedbackBoundary({
@@ -41,6 +58,22 @@ class HapticFeedbackBoundary extends InheritedWidget {
     this.enabled = true,
     this.intensityScale = 1.0,
     this.speedScale = 1.0,
+    this.safetyPolicy,
+    this.privacyMode,
+  });
+
+  /// Convenience constructor for security-sensitive sections (e.g. PIN codes, password inputs).
+  ///
+  /// Protects against acoustic and accelerometer-based side-channel keystroke inference attacks
+  /// by masking timing cadence or muting vibrations.
+  const HapticFeedbackBoundary.secure({
+    super.key,
+    required super.child,
+    this.enabled = true,
+    this.intensityScale = 1.0,
+    this.speedScale = 1.0,
+    this.safetyPolicy = HapticSafetyPolicy.strict,
+    this.privacyMode = HapticPrivacyMode.mask,
   });
 
   /// Whether tactile haptics are enabled for children of this boundary.
@@ -51,6 +84,12 @@ class HapticFeedbackBoundary extends InheritedWidget {
 
   /// Playback speed multiplier applied within this boundary.
   final double speedScale;
+
+  /// Scoped safety policy applied within this boundary.
+  final HapticSafetyPolicy? safetyPolicy;
+
+  /// Scoped privacy mode applied within this boundary.
+  final HapticPrivacyMode? privacyMode;
 
   /// Retrieves the ambient [HapticFeedbackBoundaryData] from the closest ancestor,
   /// with defensive boundary checking.
@@ -79,6 +118,8 @@ class HapticFeedbackBoundary extends InheritedWidget {
       enabled: boundary.enabled,
       intensityScale: safeIntensity,
       speedScale: safeSpeed,
+      safetyPolicy: boundary.safetyPolicy,
+      privacyMode: boundary.privacyMode,
     );
   }
 
@@ -89,6 +130,8 @@ class HapticFeedbackBoundary extends InheritedWidget {
   bool updateShouldNotify(HapticFeedbackBoundary oldWidget) {
     return enabled != oldWidget.enabled ||
         intensityScale != oldWidget.intensityScale ||
-        speedScale != oldWidget.speedScale;
+        speedScale != oldWidget.speedScale ||
+        safetyPolicy != oldWidget.safetyPolicy ||
+        privacyMode != oldWidget.privacyMode;
   }
 }

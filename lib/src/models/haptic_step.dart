@@ -220,6 +220,47 @@ class HapticStep {
     );
   }
 
+  /// Converts this [HapticStep] into a JSON-encodable map.
+  Map<String, dynamic> toJson() => {
+        'type': type.name,
+        'durationMs': duration.inMilliseconds,
+        'intensity': intensity,
+        if (tag != null) 'tag': tag,
+      };
+
+  /// Constructs a [HapticStep] from a JSON map with defensive validation and bounds clamping.
+  factory HapticStep.fromJson(Map<String, dynamic> json) {
+    final typeStr = json['type']?.toString();
+    final type = HapticStepType.values.firstWhere(
+      (e) => e.name == typeStr,
+      orElse: () => HapticStepType.light,
+    );
+
+    final rawDuration = json['durationMs'];
+    final durationMs =
+        (rawDuration is num && !rawDuration.isNaN && !rawDuration.isInfinite)
+            ? rawDuration.toInt().clamp(0, maxStepDuration.inMilliseconds)
+            : 50;
+
+    final rawIntensity = json['intensity'];
+    final intensity =
+        (rawIntensity is num && !rawIntensity.isNaN && !rawIntensity.isInfinite)
+            ? rawIntensity.toDouble().clamp(0.0, 1.0)
+            : 1.0;
+
+    final rawTag = json['tag']?.toString();
+    final tag = rawTag != null && rawTag.length > 100
+        ? rawTag.substring(0, 100)
+        : rawTag;
+
+    return HapticStep(
+      type: type,
+      duration: Duration(milliseconds: durationMs),
+      intensity: intensity,
+      tag: tag,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

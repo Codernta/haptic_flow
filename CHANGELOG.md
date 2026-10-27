@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.3
+
+* **Security & Safety Suite**:
+  * Added `HapticSafetyGuard` and `HapticSafetyPolicy` to defend against actuator motor burnout, thermal degradation, battery-drain DoS attacks, and event-loop thread starvation.
+  * Added rate-limiting (`maxPulsesPerSecond`), continuous vibration cutoff (`maxContinuousDuration`), and safe duty-cycle limits (`maxDutyCycle`).
+  * Added `HapticPrivacyMode` (`mask`, `mute`, `off`) to disguise keystroke cadence and PIN length against acoustic and accelerometer-based side-channel eavesdropping.
+  * Added `HapticFeedbackBoundary.secure(...)` for instant security hardening around sensitive PIN pads and password inputs.
+  * Added execution timeouts (`customActionTimeout`) for custom callbacks in `HapticStep.custom`.
+  * Added secure, schema-validated JSON serialization (`toJson()` and `fromJson()`) on `HapticStep` and `HapticSequence` with defensive bounds clamping.
+* **Performance Optimizations**:
+  * Replaced `DateTime.now()` allocations with zero-allocation monotonic microsecond clock (`Stopwatch`) in `SystemHapticDriver`, `HapticScrollPhysics`, and `HapticSlider`.
+  * Converted `HapticPresets` into immutable lazy singletons, eliminating repeated runtime allocations.
+  * Added an LRU memoization cache to `HapticSequence.fromPattern` for instant $O(1)$ compiled pattern retrieval.
+  * Avoided allocating `HapticPlaybackEvent` objects when no listeners or stream subscribers are attached to `HapticFlowController`.
+  * Added cleanup unregister callbacks to `CancellationToken.onCancel` to prevent memory leaks.
+  * Optimized `MockHapticDriver` record eviction with batch amortized removal.
+* **Studio Example App**:
+  * Added a dedicated interactive **Security & Safety Suite** tab showcasing policy switching, privacy masking, a secure PIN pad, and actuator burst tests.
+
 ## 0.1.2
 
 * **Lightweight Distribution**:

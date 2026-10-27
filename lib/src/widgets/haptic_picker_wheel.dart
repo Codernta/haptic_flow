@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../engine/haptic_flow_controller.dart';
 import '../models/haptic_step.dart';
+import '../security/haptic_safety_policy.dart';
+import 'haptic_feedback_boundary.dart';
 
 /// A rotary wheel / drum picker widget that delivers crisp tactile feedback
 /// on every item detent change.
@@ -137,10 +139,19 @@ class _HapticPickerWheelState extends State<HapticPickerWheel> {
   }
 
   void _triggerHaptic(HapticStep step) {
+    if (!mounted || !HapticFeedbackBoundary.isEnabled(context)) return;
+    final boundary = HapticFeedbackBoundary.of(context);
+    if (boundary.privacyMode == HapticPrivacyMode.mute) return;
+
+    final scaledStep = step.scaled(
+      intensityScale: boundary.intensityScale,
+      speedScale: boundary.speedScale,
+    );
+
     if (widget.controller != null) {
-      widget.controller!.playStep(step);
+      widget.controller!.playStep(scaledStep);
     } else {
-      HapticFlow.playStep(step);
+      HapticFlow.playStep(scaledStep);
     }
   }
 
